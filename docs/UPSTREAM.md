@@ -31,6 +31,8 @@ The upstream `src`, `dist`, `docs`, `test`, `tools`, build metadata, README and 
 
 Strict mode also withholds partial battery power and live autarky/self-consumption when the grid measurement is missing. Voltage-only battery profiles remain visible with unknown power/SOC instead of disappearing.
 
+The explanation dialog reports an incomplete energy balance whenever a required power source is unknown; it must not interpret an absent source as zero or assert an unmeasured cause.
+
 The 3D power value can wrap its unit at very narrow widths. `stats-card.js` reserves two lines for cost explanations, preventing a height jump when the selected period lacks cost history. These fixes address Linux font metrics without relaxing the original layout assertions.
 
 `test/upstream/flow-big.html`: measure the large consumer tile before mounting the comparison card. The original test read its width after removing it from the DOM, producing zero. The assertion itself is retained.

@@ -16,7 +16,7 @@ npm pack
 Install the generated package through the supported controller CLI, from the ioBroker container:
 
 ```sh
-iobroker url /tmp/iobroker.energy-cockpit-0.1.0-alpha.2.tgz energy-cockpit
+iobroker url /tmp/iobroker.energy-cockpit-0.1.0-alpha.3.tgz energy-cockpit
 iobroker add energy-cockpit --enabled
 ```
 

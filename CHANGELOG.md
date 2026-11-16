@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Withhold causal energy explanations when mapped grid, home, generation or battery power is incomplete.
+- Extend the missing-grid browser regression to cover explanatory text as well as percentages.
+
 ## 0.1.0-alpha.2
 
 - Keep power units inside narrow 3D tiles on Linux system fonts.

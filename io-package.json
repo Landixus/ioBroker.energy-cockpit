@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.2",
+    "version": "0.1.0-alpha.3",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
@@ -10,6 +10,10 @@
       "0.1.0-alpha.2": {
         "en": "Correct cross-platform compact flow and statistics layouts",
         "de": "Kompakte Energiefluss- und Statistikansicht korrigiert"
+      },
+      "0.1.0-alpha.3": {
+        "en": "Withhold causal explanations when energy sources are incomplete",
+        "de": "Energie-Erklaerungen bei unvollstaendigen Messwerten absichern"
       }
     },
     "titleLang": {

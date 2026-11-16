@@ -671,6 +671,11 @@ class EnergyCockpitFlowCard extends HTMLElement {
   _whyHtml() {
     const c = this._c, h = this._hass, y = this._wy, fW = (v) => this._fW(v), pct = (v) => Math.round(v);
     if (!y || !h) return `<div class="d-hd"><span class="d-name">${T('why.none')}</span><button class="d-x" aria-label="${T('close')}">×</button></div>`;
+    // In strict telemetry mode, missing sources cannot justify a causal explanation.
+    if (c.strict_data && (y.home === null || watt(h, c.grid?.entity) === null ||
+      [c.pv, c.pv2, c.grid2].some(source => source?.entity && watt(h, source.entity) === null) ||
+      (y.bats || []).some(b => b.p === null)))
+      return `<div class="d-hd"><span class="d-name">Energiebilanz unvollständig</span><button class="d-x" aria-label="${T('close')}">×</button></div><p class="wsub">Für eine belastbare Erklärung fehlen aktuelle Messwerte von Netz, Haus oder einem beteiligten Erzeuger beziehungsweise Speicher. Bitte die Zuordnungen und die Diagnose prüfen. Fehlende Werte werden nicht als null Watt interpretiert.</p>`;
     const imp = y.gImp > TH, exp = !imp && y.gExp > TH;
     const items = (this._wyItems || []).filter((x) => x.w >= 5).slice().sort((a, b) => b.w - a.w);
     const known = (this._wyItems || []).reduce((a, x) => a + x.w, 0);

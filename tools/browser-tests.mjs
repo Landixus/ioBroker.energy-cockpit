@@ -69,6 +69,12 @@ try {
   );
   assert.equal(await page.locator('[data-p="aut"]').innerText(), "—");
   assert.equal(await page.locator('[data-p="self"]').innerText(), "—");
+  assert.match(
+    await page.evaluate(() =>
+      document.querySelector("energy-cockpit-flow-card")._whyHtml(),
+    ),
+    /Energiebilanz unvollständig/,
+  );
   await page.evaluate(() => {
     document.querySelector("energy-cockpit-flow-card").hass =
       window.testOriginalHass;
