@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.7
+
+- Correct the short external 3D grid cable: red import enters the meter, green export leaves it. The long grid-to-house connection retains its direction.
+- Group BMS telemetry, external AC charger and inverter output in a single battery profile.
+- Add a dedicated charger-to-battery animation and independent battery-to-house discharge route.
+- Include charger demand in gross household load, subtract it once from the consumer remainder and calculate source shares from complete measurements, including measured zero inverter output.
+- Test charging, discharging, simultaneous AC flows, missing/invalid channels and measured household values in classic and 3D layouts.
+
 ## 0.1.0-alpha.6
 
 - Separate grid power from household consumption. Derive household consumption only when all configured sources are available; failed house meters remain unavailable.

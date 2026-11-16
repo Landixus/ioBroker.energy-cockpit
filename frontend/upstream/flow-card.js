@@ -899,7 +899,12 @@ class EnergyCockpitFlowCard extends HTMLElement {
         <span class="c-sec"></span></div>`;
     }).join('');
     // Kachel "Nicht erfasst" auch bei einzelnen Verbrauchern ohne Gruppen, aber nur wenn hide_rest: false ausdrücklich gesetzt ist (#34)
-    const restC = c.consumers.length > 0 && !(c.consumer_groups || []).length && c.hide_rest === false && c.rest !== false;
+    const chargers = c.batteries.map((b, i) => {
+      if (!b.charge_device || !b.power_charge) return '';
+      links.push('charger' + i, `r:charger${i}:${this._bk(i)}`);
+      return `<div class="cons charger" data-k="charger${i}" data-e="${esc(b.power_charge)}" style="--c:${PAL.chg}"><span class="ico"><ha-icon icon="mdi:power-plug"></ha-icon></span><div class="c-txt"><span class="lbl">${esc(b.charge_device.name || 'Ladegerät')}</span><span class="val"><span class="num">—</span><span class="unit"></span></span></div><span class="c-sec">AC-Aufnahme</span></div>`;
+    }).join('');
+    const restC = (c.consumers.length > 0 && c.hide_rest === false || chargers && !c.hide_rest) && !(c.consumer_groups || []).length && c.rest !== false;
     if (restC && !sam) links.push('crest');
     const consRest = restC ? `<div class="cons rest" data-k="crest" style="--c:${PAL.mut}">
         <span class="ico"><ha-icon icon="mdi:help-circle-outline"></ha-icon></span>
@@ -979,7 +984,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
             </div>
           </div>
         </div>
-        ${sam ? `<div class="sambox"><div class="sam" data-k="bundle"><span class="sam-t">${T('flow.cons_total')}</span><b class="sam-w">—</b></div>` : ''}${cons ? `<div class="consumers${c.consumers.some((x) => x.size === 'mittel' || x.size === 'mid') ? ' hm' : ''}">${cons}${consRest}</div>` : ''}
+        ${sam ? `<div class="sambox"><div class="sam" data-k="bundle"><span class="sam-t">${T('flow.cons_total')}</span><b class="sam-w">—</b></div>` : ''}${cons || chargers ? `<div class="consumers${c.consumers.some((x) => x.size === 'mittel' || x.size === 'mid') ? ' hm' : ''}">${cons}${chargers}${consRest}</div>` : ''}
         ${grps}${sam ? '</div>' : ''}
       </div>
       <footer>${stats}</footer>
@@ -1156,6 +1161,12 @@ class EnergyCockpitFlowCard extends HTMLElement {
         if (!ea || !eb || !ea.offsetParent || !eb.offsetParent) { set(''); continue; }
         const box = (e) => { const b = e.getBoundingClientRect(); return { t: (b.top - sr.top) / k0, b: (b.bottom - sr.top) / k0, l: (b.left - sr.left) / k0, r: (b.right - sr.left) / k0 }; };
         const A = box(ea), B = box(eb), f = (n) => n.toFixed(1);
+        if (from.startsWith('charger')) {
+          const ax = (A.l + A.r) / 2, bx = (B.l + B.r) / 2;
+          const y = (A.t + B.b) / 2;
+          set(`M${f(ax)},${f(A.t)} L${f(ax)},${f(y)} L${f(bx)},${f(y)} L${f(bx)},${f(B.b)}`);
+          continue;
+        }
         const ox = Math.min(A.r, B.r) - Math.max(A.l, B.l), oy = Math.min(A.b, B.b) - Math.max(A.t, B.t);
         // Zwei Linien zum selben Speicher enden versetzt
         const shift = from === 'pv' ? -9 : from === 'grid' ? 9 : 0;
@@ -1549,11 +1560,14 @@ class EnergyCockpitFlowCard extends HTMLElement {
     if (grid !== null && c.grid.invert) grid = -grid;
     // Je Speicher Leistung (Laden positiv) und Ladestand; Summe bzw. nach Kapazität gewichteter Mittelwert für Ring und Banner
     const bats = c.batteries.map((b, i) => {
-      let p = b.power ? watt(h, b.power) : null;
+      let p = b.power ? watt(h, b.power) : null, charge = null, discharge = null;
       // Getrennte Sensoren für Laden und Entladen (z. B. SunEnergyXT): Laden positiv, Entladen negativ
       if (!b.power && (b.power_charge || b.power_discharge)) {
         const pc = b.power_charge ? watt(h, b.power_charge) : null, pd = b.power_discharge ? watt(h, b.power_discharge) : null;
+        charge = pc !== null && pc >= 0 ? pc : null;
+        discharge = pd !== null && pd >= 0 ? pd : null;
         p = c.strict_data && ((b.power_charge && pc === null) || (b.power_discharge && pd === null)) ? null : pc === null && pd === null ? null : (pc || 0) - (pd || 0);
+        if (c.strict_data && b.charge_device && (charge === null || discharge === null)) p = null;
       }
       if (p !== null && b.invert) p = -p;
       // pv_to_battery: direkt: Ausgang des vorgeschalteten Speichers; ohne eigenen Leistungssensor ergibt sich Laden = PV-Eingang - Ausgang
@@ -1565,7 +1579,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
         if (i === this._via2) { const ai = b.power_in ? watt(h, b.power_in) : null; inAc = ai === null ? 0 : Math.max(0, ai); }
         if (p === null && out !== null) p = i === this._via2 ? Math.max(0, pv2 || 0) + inAc - out : Math.max(0, pv1 || 0) - out;
       }
-      return { b, i, p, out, inAc, soc: num(h, b.soc), cap: parseFloat(b.capacity_kwh) || 0 };
+      return { b, i, p, charge, discharge, out, inAc, soc: num(h, b.soc), cap: parseFloat(b.capacity_kwh) || 0 };
     });
     // Gemeinsamer Leistungssensor (übereinander gestapelte Batterien): zählt nur einmal, beim ersten Speicher mit diesem Sensor
     const sensorSeen = {};
@@ -1576,7 +1590,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
     });
     // behind_meter: Speicher hinter dem Zähler steht nicht in der Bilanz (eigene Kachel bleibt). Seine Ladung zählt wie ein Gerät im Haus, seine Abgabe als Quelle
     const inBal = bats.filter((x) => x.b.behind_meter !== true);
-    const bmChg = bats.reduce((a, x) => (x.b.behind_meter === true ? a + (x.i === this._via2 ? (x.inAc || 0) : Math.max(0, x.p || 0)) : a), 0);
+    const bmChg = bats.reduce((a, x) => (x.b.behind_meter === true && !x.lead ? a + (x.b.charge_device ? (x.charge || 0) : x.i === this._via2 ? (x.inAc || 0) : Math.max(0, x.p || 0)) : a), 0);
     // pv2.to_battery: PV 2 speist den Speicher, nicht das Haus
     const pv2Via = this._via2 >= 0 ? Math.max(0, pv2 || 0) : 0;
     const bat = c.strict_data && inBal.some(x => !x.lead && x.p === null) ? null : inBal.some((x) => x.p !== null) ? inBal.reduce((a, x) => a + (x.p || 0), 0) : null;
@@ -1587,7 +1601,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
     // Negativer Verbrauch ist nicht möglich, dann gilt die eigene Berechnung
     if (home !== null && home < 0) home = null;
     // Mit eigenem Sensor gilt dessen Wert, die Abgabe käme sonst im Ring dazu, nicht aber in der Zahl
-    const bmDis = home === null ? bats.reduce((a, x) => (x.b.behind_meter === true ? a + (x.i === this._via2 ? (x.out || 0) : Math.max(0, -(x.p || 0))) : a), 0) : 0;
+    const bmDis = home === null || c.strict_data ? bats.reduce((a, x) => (x.b.behind_meter === true && !x.lead ? a + (x.b.charge_device ? (x.discharge || 0) : x.i === this._via2 ? (x.out || 0) : Math.max(0, -(x.p || 0))) : a), 0) : 0;
     const sourcesKnown = grid !== null && (!c.grid2?.entity || watt(h, c.grid2.entity) !== null) &&
       (!c.pv?.entity || pv1 !== null) && (!c.pv2?.entity || pv2 !== null) &&
       bats.every(x => x.lead || x.p !== null);
@@ -1751,6 +1765,22 @@ class EnergyCockpitFlowCard extends HTMLElement {
       else this._links.filter(L => L.k.startsWith('r:')).forEach(L => this._link(L.k, false, true, PAL.mut, 0));
       this._draw3d({ pv1, pv2, grid, home, bats, src: mixKnown ? { pv: pvHome, bat: bDis, imp: gImp } : { pv: 0, bat: 0, imp: 0 } });
     }
+    // The external AC charger is a measured house load. Its branch is independent
+    // of the inverter output, including simultaneous charging and discharging.
+    bats.forEach(x => {
+      if (!x.b.charge_device || !x.b.power_charge || x.lead) return;
+      const key = this._bk(x.i), ck = 'charger' + x.i;
+      const el = this._$(`[data-k="${ck}"]`), bel = this._$(`[data-k="${key}"]`);
+      const charging = x.charge > TH, discharging = x.discharge > TH;
+      el.classList.toggle('on', charging);
+      this._anim(ck, x.charge, el);
+      this._link(ck, charging, false, PAL.chg, x.charge);
+      this._link(`r:${ck}:${key}`, charging, true, PAL.chg, x.charge);
+      this._link(key, discharging, true, PAL.dis, x.discharge);
+      bel.classList.toggle('on', charging || discharging);
+      this._set('.sub', `AC-Ladung ${this._fW(x.charge)} · Abgabe ${this._fW(x.discharge)}`, false, bel);
+      if (charging && discharging) this._set('.tag', 'Laden + Einspeisen', false, bel);
+    });
     this._banner({ pv, grid, bat, soc, home, gImp: gImpM, gExp });
     // Momentaufnahme fuer die "Warum?"-Erklaerung (why)
     this._wy = { home, pv: pv || 0, pvHome, bDis, bmChg, gImp, gExp, bats: bats.filter((x) => !x.lead).map((x) => Object.assign({ n: x.b.name || T('flow.battery'), p: x.p, soc: x.soc }, this._limits(x.b))) };

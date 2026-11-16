@@ -210,8 +210,8 @@ try {
           );
           if (style === "3d")
             assert.ok(
-              result.cableDy * power > 0,
-              "3D meter cable: import leaves meter, export enters meter",
+              result.cableDy * power < 0,
+              "3D meter external cable: import enters meter, export leaves meter",
             );
           assert.match(result.label, power > 0 ? /Bezug/ : /Einspeisung/);
         } else
@@ -277,6 +277,71 @@ try {
   );
   assert.deepEqual(errors, []);
   const cases = [
+    {
+      name: "external charger",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: 200,
+      discharge: 0,
+      home: 400,
+      rest: 150,
+      shares: ["25 %", "0 %", "75 %"],
+    },
+    {
+      name: "external inverter",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: 0,
+      discharge: 100,
+      home: 500,
+      rest: 450,
+      shares: ["20 %", "20 %", "60 %"],
+    },
+    {
+      name: "simultaneous AC charge and discharge",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: 200,
+      discharge: 100,
+      home: 500,
+      rest: 250,
+      shares: ["20 %", "20 %", "60 %"],
+    },
+    {
+      name: "unknown inverter is not zero",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: 200,
+      discharge: null,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "invalid negative charger",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: -200,
+      discharge: 0,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "measured house with external inverter",
+      external: true,
+      grid: 300,
+      pv: 100,
+      charge: 0,
+      discharge: 100,
+      measured: 500,
+      home: 500,
+      rest: 450,
+      shares: ["20 %", "20 %", "60 %"],
+    },
     {
       name: "import with idle battery",
       grid: 300,
@@ -389,12 +454,20 @@ try {
             home: Object.hasOwn(scenario, "measured")
               ? { entity: "sensor.house" }
               : { name: "Hausverbrauch (berechnet)" },
-            battery: scenario.split
+            battery: scenario.external
               ? {
+                  name: "Test battery",
+                  behind_meter: true,
+                  charge_device: { name: "Test charger" },
                   power_charge: "sensor.charge",
                   power_discharge: "sensor.discharge",
                 }
-              : { power: "sensor.battery" },
+              : scenario.split
+                ? {
+                    power_charge: "sensor.charge",
+                    power_discharge: "sensor.discharge",
+                  }
+                : { power: "sensor.battery" },
             rest: { name: "Weitere Hausverbraucher" },
             consumer_groups: [
               {
@@ -423,8 +496,8 @@ try {
                 Object.hasOwn(scenario, "device") ? scenario.device : 50,
               ),
               "sensor.house": s(scenario.measured),
-              "sensor.charge": s(null),
-              "sensor.discharge": s(0),
+              "sensor.charge": s(scenario.charge ?? null),
+              "sensor.discharge": s(scenario.external ? scenario.discharge : 0),
             },
           };
         },
@@ -458,6 +531,32 @@ try {
           0,
           scenario.name,
         );
+      if (scenario.external) {
+        const chargeOn = scenario.charge > 10,
+          dischargeOn = scenario.discharge > 10;
+        assert.equal(
+          await page.locator('[data-l="r:charger0:bat"].on:not(.rev)').count(),
+          Number(chargeOn),
+          scenario.name,
+        );
+        assert.equal(
+          await page.locator('[data-l="charger0"].on.rev').count(),
+          Number(chargeOn),
+          scenario.name,
+        );
+        assert.equal(
+          await page.locator('[data-l="bat"].on:not(.rev)').count(),
+          Number(dischargeOn),
+          scenario.name,
+        );
+        assert.equal(await page.locator(".node.bat").count(), 1);
+        if (scenario.name === "external charger" && style === "3d") {
+          await page.screenshot({
+            path: "test-results/external-charger.png",
+            fullPage: true,
+          });
+        }
+      }
       if (scenario.grid > 0)
         assert.equal(
           await page.locator('[data-l="grid"].on:not(.rev)').count(),

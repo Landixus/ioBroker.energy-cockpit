@@ -41,6 +41,8 @@ No Home Assistant service is silently implemented as a guessed ioBroker control.
 
 The build replaces original `new Date(...)` calendar constructors with a Europe/Berlin-bound TZDate subclass. Epoch timestamps and Date.parse/Date.now retain their standard meaning. @date-fns/tz is MIT licensed and its license is shipped in the frontend build. Enlarged consumer columns now scale with label size instead of remaining fixed-width.
 
-`flow-3d.js`: the grid meter cable now sends import out of the meter toward the house connection and export into the meter. `flow-card.js` adds static tangent-aligned direction arrows and caps dotted motion speed to make direction legible at lower frame rates. Main path sign conventions remain positive for grid import and negative for export.
+`flow-3d.js`: the short external grid cable sends import into the meter and export out of the meter. The separate long connection sends import from the grid tile to the house. `flow-card.js` adds static tangent-aligned direction arrows and caps dotted motion speed to make direction legible at lower frame rates. Main path sign conventions remain positive for grid import and negative for export.
 
 Alpha.6 strict-data mode withholds normalized source shares and source-colored house rings when source measurements are incomplete or inconsistent. It derives household consumption only with complete standard AC sources, suppresses inferred cross-device routes during incomplete balances, and preserves unknown consumer remainders. Missing 3D grid values remain unavailable instead of becoming zero.
+
+Alpha.7 adds an explicit external AC charger branch and gross charge/discharge channels for behind-meter storage. AC charger demand is included in gross household load and deducted once from its consumer remainder. The battery-to-house route follows inverter output independently of charger demand.

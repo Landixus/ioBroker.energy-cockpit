@@ -1,5 +1,13 @@
 # Configuration
 
+## External AC charger and battery inverter
+
+Use `battery_charge` for the charger's positive AC input power and `battery_discharge` for the inverter's positive AC output power. Give both mappings and the corresponding BMS telemetry the same battery `group`. This creates one battery tile with SOC, temperature and extra voltage/current readings, plus a dedicated charger tile. It does not create two independent batteries. Map the charger only once; do not also assign its input as an ordinary consumer. A matching `consumer_energy` mapping (same group/name) may supply its existing energy counter in Devices.
+
+For this layout, gross household power **includes the charger**: solar + signed grid + inverter output. Source shares describe that gross demand. The consumer remainder subtracts charger input and individually measured consumers exactly once. Charger input and inverter output are separate even if both are nonzero. AC input is not DC energy stored; conversion losses are not independently measured.
+
+The charger branch animates from house to charger to battery; the battery-to-house branch uses inverter output. Missing or negative split-channel readings remain unknown; a fresh measured zero is valid. Both power channels are required for a complete source mix. No switch or battery control command is issued.
+
 The Admin page configures bind address, port and HTTPS, opens the graphical wizard and exposes the same settings as JSON. The wizard has solar, grid, batteries, home, consumers/rooms, history, prices, appearance, optional Batter4802 and diagnostics steps.
 
 Each mapping has a stable lowercase `key`, actual ioBroker `id`, display name, dimension, explicit source unit, positive scale factor, optional sign inversion and `staleSeconds`. The presentation receives only aliases such as `sensor.solar`. Metadata suggestions are editable and are not evidence that a device is a PV inverter or grid meter.

@@ -1,4 +1,15 @@
-# Verification report - 0.1.0-alpha.6
+# Verification report - 0.1.0-alpha.7
+
+## Alpha.7 external battery channels and grid cable
+
+- 18 unit/API tests, six standalone browser groups and 62 UI regression scenarios passed locally.
+- New classic/3D scenarios cover external charging, inverter discharge, simultaneous charge/discharge, unavailable inverter readings, negative charger readings and measured household demand. They assert source shares, household/remainder values and independent route directions.
+- Short 3D meter cable direction is checked separately from the main connection for import/export at desktop and mobile widths.
+- ESLint, TypeScript and existing upstream 3D, animation and behind-meter assertion pages passed.
+- A fresh production controller backup was validated and its archive readability checked. Deployment verification is pending at this commit.
+- Pattern and exact private-value scans passed for tracked source and the packaged adapter. No private telemetry or screenshots are published.
+
+## Previous alpha.6 verification
 
 ## Alpha.6 grid and household correction
 

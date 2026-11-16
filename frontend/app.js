@@ -44,6 +44,8 @@ const roleOptions = {
   grid_import_total: "Bezug Gesamtzähler",
   grid_export_total: "Einspeisung Gesamtzähler",
   battery_power: "Batterie (+ Laden)",
+  battery_charge: "Ladegerät: AC-Aufnahme (W)",
+  battery_discharge: "Batterie-Wechselrichter: Abgabe (W)",
   battery_soc: "Batterie Ladestand",
   battery_voltage: "Batterie Spannung",
   battery_current: "Batterie Strom",
@@ -59,6 +61,8 @@ const stepRoles = [
   ["grid", "grid_import_total", "grid_export_total"],
   [
     "battery_power",
+    "battery_charge",
+    "battery_discharge",
     "battery_soc",
     "battery_voltage",
     "battery_current",
@@ -71,6 +75,8 @@ const stepRoles = [
   [],
   [
     "battery_power",
+    "battery_charge",
+    "battery_discharge",
     "battery_soc",
     "battery_voltage",
     "battery_current",
@@ -152,7 +158,11 @@ function generatedCards(config) {
     grid: has("grid") ? { entity: a("grid") } : undefined,
     home: has("house")
       ? { entity: a("house") }
-      : { name: "Hausverbrauch (berechnet)" },
+      : {
+          name: has("battery_charge")
+            ? "Hausverbrauch inkl. Ladegerät"
+            : "Hausverbrauch (berechnet)",
+        },
     batteries: [],
     consumers: [],
     rest: { name: "Weitere Hausverbraucher" },
@@ -166,6 +176,8 @@ function generatedCards(config) {
     const b = groups.get(g);
     const fields = {
       battery_power: "power",
+      battery_charge: "power_charge",
+      battery_discharge: "power_discharge",
       battery_soc: "soc",
       battery_voltage: "voltage",
       battery_current: "current",
@@ -174,6 +186,10 @@ function generatedCards(config) {
     if (m.role === "battery_voltage" || m.role === "battery_current") {
       (b.extra ??= []).push({ entity: "sensor." + m.key, name: m.name });
     } else b[fields[m.role]] = "sensor." + m.key;
+    if (m.role === "battery_charge") {
+      b.charge_device = { name: m.name, entity: "sensor." + m.key };
+      b.behind_meter = true;
+    }
   }
   flow.batteries = [...groups.values()];
   const rooms = new Map();
@@ -197,6 +213,25 @@ function generatedCards(config) {
     name: r.name,
     items: r.devices.map((d) => ({ name: d.name, entity: d.power })),
   }));
+  // External chargers remain visible in Devices, but their flow belongs to the battery branch.
+  for (const m of config.mappings.filter((x) => x.role === "battery_charge")) {
+    const room = m.group || "Batterie";
+    if (!rooms.has(room)) rooms.set(room, { name: room, devices: [] });
+    const energy = config.mappings.find(
+      (x) =>
+        x.role === "consumer_energy" &&
+        x.group === m.group &&
+        x.name === m.name,
+    );
+    rooms
+      .get(room)
+      .devices.push({
+        name: m.name,
+        power: "sensor." + m.key,
+        energy: energy ? "sensor." + energy.key : undefined,
+        lock: true,
+      });
+  }
   const stats = {
     ...common,
     pv_total: has("pv_total") ? a("pv_total") : undefined,
@@ -275,8 +310,11 @@ function render() {
   if (page === "flow" && !settings.mappings.some((m) => m.role === "house")) {
     const warning = document.createElement("div");
     warning.className = "banner";
-    warning.textContent =
-      "Hausverbrauch ist eine Bilanzberechnung. Ohne vollständige Erzeugungs-, Netz- und Batteriemessung ist er nicht verfügbar.";
+    warning.textContent = settings.mappings.some(
+      (m) => m.role === "battery_charge",
+    )
+      ? "Hausverbrauch inkl. Ladegerät = Solar + Netzbezug − Einspeisung + Batterieabgabe. Weitere Hausverbraucher = Hausverbrauch abzüglich Ladegerät und einzeln gemessener Geräte. Fehlende Messwerte bleiben unbekannt."
+      : "Hausverbrauch ist eine Bilanzberechnung. Ohne vollständige Erzeugungs-, Netz- und Batteriemessung ist er nicht verfügbar.";
     $("#main").prepend(warning);
   }
 }

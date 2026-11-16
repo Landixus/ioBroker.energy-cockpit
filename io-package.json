@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.6",
+    "version": "0.1.0-alpha.7",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
@@ -26,6 +26,10 @@
       "0.1.0-alpha.6": {
         "en": "Correct grid/household semantics and withhold incomplete source shares",
         "de": "Netz und Hausverbrauch korrekt trennen; unvollstaendige Anteile ausblenden"
+      },
+      "0.1.0-alpha.7": {
+        "en": "Connect external AC charger and inverter to one battery; correct external grid cable direction",
+        "de": "Ladegeraet, Wechselrichter und BMS einem Speicher zuordnen; Netz-Zuleitung korrigieren"
       }
     },
     "titleLang": {
