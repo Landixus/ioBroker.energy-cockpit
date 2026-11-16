@@ -131,7 +131,7 @@ footer{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gri
 .cc{margin-top:14px}
 .cc-head{display:flex;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .cc-head .lbl{margin-right:auto}
-.cc-sum{font-size:.76rem;color:rgb(var(--mut));font-variant-numeric:tabular-nums}
+.cc-sum{font-size:.76rem;color:rgb(var(--mut));font-variant-numeric:tabular-nums;flex:1 1 100%;line-height:1.4;min-height:2.8em}
 .cc-sum b{color:rgb(var(--imp));font-weight:700}
 .cc-sum b.s{color:rgb(var(--sav))}
 .cc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));grid-gap:12px;gap:12px}

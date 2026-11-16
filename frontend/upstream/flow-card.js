@@ -374,6 +374,7 @@ footer{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gri
 .ico.logo,.grp .ico.logo{width:auto;height:auto;min-width:0;background:none;box-shadow:none;border-radius:6px}
 .s3d .soc-row{line-height:1.1}
 .s3d .tag{max-width:100%;box-sizing:border-box;white-space:normal;overflow-wrap:anywhere}
+.s3d .node .val{flex-wrap:wrap;min-width:0}
 .ico.logo img{display:block;height:28px;max-width:96px;object-fit:contain;border-radius:5px}
 .cons .ico.logo img{height:30px;max-width:80px}
 /* animations: always (oder immer) animiert auch bei "Bewegung reduzieren" am Gerät */
