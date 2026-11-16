@@ -1,4 +1,10 @@
-# Verification report - 0.1.0-alpha.4
+# Verification report - 0.1.0-alpha.5
+
+## Alpha.5 visual direction override
+
+The change is limited to `rest.reverse_flow`. No sensor-role or calculation change is included. Local validation: 18 unit/API tests and 28 UI regression scenarios passed, including reversal of the selected connection without changing its value or other consumer directions. Deployment verification is pending.
+
+## Previous alpha.4 verification
 
 ## Alpha.4 UI regression checks
 

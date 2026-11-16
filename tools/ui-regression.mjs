@@ -223,6 +223,59 @@ try {
         );
       }
   assert.deepEqual(errors, []);
+  // A visual direction override must not change any measured or calculated value.
+  for (const reverse of [false, true]) {
+    await page.evaluate((reverse) => {
+      document.querySelector("energy-cockpit-flow-card")?.remove();
+      const card = document.createElement("energy-cockpit-flow-card");
+      card.setConfig({
+        pv: { entity: "sensor.pv" },
+        home: { entity: "sensor.home" },
+        style: "3d",
+        consumer_groups: [
+          {
+            name: "Testgruppe",
+            items: [{ entity: "sensor.device", name: "Testgerät" }],
+          },
+        ],
+        rest: { reverse_flow: reverse },
+      });
+      document.body.append(card);
+      const s = (value) => ({
+        state: String(value),
+        attributes: { unit_of_measurement: "W" },
+      });
+      card.hass = {
+        language: "de",
+        locale: { language: "de" },
+        themes: { darkMode: true },
+        states: {
+          "sensor.pv": s(100),
+          "sensor.home": s(500),
+          "sensor.device": s(50),
+        },
+      };
+    }, reverse);
+    await page.waitForFunction(() =>
+      document
+        .querySelector("energy-cockpit-flow-card")
+        .shadowRoot.querySelector('[data-l="grest"] .flow')
+        ?.getAttribute("d"),
+    );
+    assert.equal(
+      await page.locator('[data-k="grest"] .num').textContent(),
+      "450",
+    );
+    assert.equal(
+      await page.locator('[data-l="grest"].on.rev').count(),
+      reverse ? 0 : 1,
+    );
+    assert.equal(await page.locator('[data-l="g0"].on.rev').count(), 1);
+  }
+  results.push(
+    "Selected remainder animation reverses without changing values or other consumer directions",
+  );
+  assert.deepEqual(errors, []);
   await writeFile(
     "test-results/ui-regression.json",
     JSON.stringify({ passed: results, errors }, null, 2),

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.5
+
+- Add `rest.reverse_flow` to reverse only the remainder connection animation and its arrow. Values and all other flow directions are unchanged.
+- Add a browser regression for the visual override.
+
 ## 0.1.0-alpha.4
 
 - Reverse the 3D grid meter cable on import: energy leaves the meter toward the house. Export returns into the meter.

@@ -1796,7 +1796,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
       crel.style.display = show ? '' : 'none';
       crel.classList.toggle('on', on);
       this._anim('crest', restW, crel);
-      this._link('crest', on, false, PAL.mut, restW);
+      this._link('crest', on, c.rest?.reverse_flow === true, PAL.mut, restW);
     }
     const G = c.consumer_groups || [];
     if (G.length) {
@@ -1852,7 +1852,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
         const on = rest > TH;
         rel.classList.toggle('on', on);
         this._anim('grest', rest, rel);
-        this._link('grest', on, false, PAL.mut, rest);
+        this._link('grest', on, c.rest?.reverse_flow === true, PAL.mut, rest);
         this._set('.rest-t', home > TH ? T('flow.restpct', { n: Math.round(Math.min(1, (known + bmChg) / home) * 100) }) : '');
       }
     }

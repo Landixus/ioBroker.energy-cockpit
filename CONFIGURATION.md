@@ -21,3 +21,5 @@ Prices are EUR/kWh. Blank means unknown. Fixed tariffs are assumptions for calcu
 Advanced JSON preserves original card options under `cards.flow`, `cards.devices`, `cards.stats` and `cards.room`. Local icon names are supported. Remote images, embedded HTML and external navigation URLs are rejected. Home Assistant weather and calendar services have no backend and remain unavailable.
 
 The Cockpit login has permission to view mappings and save this adapter's configuration. There are no unauthenticated mutation routes. Device control is disabled in this version.
+
+`cards.flow.rest.reverse_flow: true` reverses only the remainder connection animation and direction arrow toward the house. This is a visual override; it does not reclassify the remainder as measured grid power or change calculations. Default: false.

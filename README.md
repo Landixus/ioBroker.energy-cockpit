@@ -2,7 +2,7 @@
 
 Native ioBroker adapter built from the actual [Energy-Cockpit](https://github.com/msucimaker3112/energy-cockpit) source by Musicmaker3112. The original animated energy flow, SVG 3D house, battery graphics, devices, room and statistics cards run as standalone web components.
 
-**Status: 0.1.0-alpha.4, integration candidate.** This is not a declaration that all requested production acceptance criteria have passed. See [TEST_REPORT.md](TEST_REPORT.md) for executed checks and remaining limits.
+**Status: 0.1.0-alpha.5, integration candidate.** This is not a declaration that all requested production acceptance criteria have passed. See [TEST_REPORT.md](TEST_REPORT.md) for executed checks and remaining limits.
 
 ![Explicitly simulated energy flow](docs/screenshots/demo-desktop.png)
 

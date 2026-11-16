@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.4",
+    "version": "0.1.0-alpha.5",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
@@ -18,6 +18,10 @@
       "0.1.0-alpha.4": {
         "en": "Fix 3D grid import direction and readable Admin dark themes",
         "de": "3D-Netzflussrichtung und Lesbarkeit im dunklen Admin-Design korrigiert"
+      },
+      "0.1.0-alpha.5": {
+        "en": "Allow reversing the selected remainder animation",
+        "de": "Flussrichtung der Rest-Kachel gezielt umkehrbar"
       }
     },
     "titleLang": {
