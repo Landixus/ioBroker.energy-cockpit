@@ -1,4 +1,9 @@
-# Verification report - 0.1.0-alpha.7
+# Verification report - 0.1.0-alpha.8
+
+## Alpha.8 charger layout
+
+- 70 UI regression scenarios passed, including eight new classic/3D charger-only layouts at 1440, 768, 390 and 320 px. They verify separate input/output ports, non-overlapping labels and the consumer remainder.
+- Production layout verification is pending at this commit.
 
 ## Alpha.7 external battery channels and grid cable
 
@@ -6,7 +11,7 @@
 - New classic/3D scenarios cover external charging, inverter discharge, simultaneous charge/discharge, unavailable inverter readings, negative charger readings and measured household demand. They assert source shares, household/remainder values and independent route directions.
 - Short 3D meter cable direction is checked separately from the main connection for import/export at desktop and mobile widths.
 - ESLint, TypeScript and existing upstream 3D, animation and behind-meter assertion pages passed.
-- A fresh production controller backup was validated and its archive readability checked. Deployment verification is pending at this commit.
+- A fresh production controller backup was validated and its archive readability checked. Alpha.7 production verification passed: exactly one BMS-equipped battery tile, correct household/remainder calculations, complete source shares with measured zero battery output, correct grid cable and charger/inverter directions, desktop/tablet/mobile without overflow or page errors. Native configuration and installed/uploaded assets match expectations; existing containers and adapter health checks are unchanged.
 - Pattern and exact private-value scans passed for tracked source and the packaged adapter. No private telemetry or screenshots are published.
 
 ## Previous alpha.6 verification

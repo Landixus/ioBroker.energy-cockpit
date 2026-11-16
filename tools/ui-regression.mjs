@@ -129,6 +129,89 @@ try {
     results.push(`Admin ${theme}: text contrast >= 4.5:1`);
   }
   await page.goto("http://127.0.0.1:18089/");
+  for (const style of ["3d", "classic"])
+    for (const width of [1440, 768, 390, 320]) {
+      await page.setViewportSize({ width, height: 1100 });
+      await page.evaluate((style) => {
+        document.querySelector("energy-cockpit-flow-card")?.remove();
+        const card = document.createElement("energy-cockpit-flow-card");
+        card.setConfig({
+          style,
+          strict_data: true,
+          grid: { entity: "sensor.grid" },
+          pv: { entity: "sensor.pv" },
+          batteries: [
+            {
+              name: "Test battery",
+              behind_meter: true,
+              charge_device: { name: "Ladegerät" },
+              power_charge: "sensor.charge",
+              power_discharge: "sensor.discharge",
+            },
+          ],
+          rest: { name: "Weitere Hausverbraucher" },
+        });
+        document.body.append(card);
+        const s = (value) => ({
+          state: String(value),
+          attributes: { unit_of_measurement: "W" },
+        });
+        card.hass = {
+          language: "de",
+          locale: { language: "de" },
+          themes: { darkMode: true },
+          states: {
+            "sensor.grid": s(300),
+            "sensor.pv": s(100),
+            "sensor.charge": s(200),
+            "sensor.discharge": s(0),
+          },
+        };
+      }, style);
+      await page.waitForFunction(() =>
+        document
+          .querySelector("energy-cockpit-flow-card")
+          .shadowRoot.querySelector('[data-l="r:charger0:bat"] .flow')
+          ?.getAttribute("d"),
+      );
+      const layout = await page.evaluate(() => {
+        const root = document.querySelector(
+            "energy-cockpit-flow-card",
+          ).shadowRoot,
+          charger = root.querySelector(".charger");
+        const value = charger.querySelector(".val").getBoundingClientRect(),
+          label = charger.querySelector(".lbl"),
+          secondary = charger.querySelector(".c-sec").getBoundingClientRect();
+        const input = root.querySelector('[data-l="charger0"] .flow'),
+          output = root.querySelector('[data-l="r:charger0:bat"] .flow');
+        return {
+          separateLines:
+            Math.abs(
+              input.getPointAtLength(0).x - output.getPointAtLength(0).x,
+            ) > 20,
+          noTextOverlap: secondary.top >= value.bottom,
+          labelFits: label.scrollWidth <= label.clientWidth + 1,
+          remainder: root.querySelector('[data-k="crest"] .num').textContent,
+          noOverflow: document.documentElement.scrollWidth <= innerWidth + 1,
+        };
+      });
+      assert.ok(
+        layout.separateLines &&
+          layout.noTextOverlap &&
+          layout.labelFits &&
+          layout.noOverflow,
+        JSON.stringify({ style, width, layout }),
+      );
+      assert.equal(layout.remainder, "200");
+      if (style === "3d" && [1440, 390].includes(width))
+        await page.screenshot({
+          path: `test-results/charger-layout-${width}.png`,
+          fullPage: true,
+        });
+      results.push(
+        `${style} ${width}px: charger-only layout, readable label, separate input/output ports and remainder`,
+      );
+    }
   assert.deepEqual(errors, []);
   for (const width of [1440, 390])
     for (const style of ["3d", "classic"])

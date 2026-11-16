@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.8
+
+- Keep charger labels and AC input descriptions readable down to 320 px.
+- Give the charger's incoming and outgoing paths separate connection points so opposite directions cannot overlap at the device.
+- Add eight responsive charger-only layout checks with consumer remainder verification.
+
 ## 0.1.0-alpha.7
 
 - Correct the short external 3D grid cable: red import enters the meter, green export leaves it. The long grid-to-house connection retains its direction.

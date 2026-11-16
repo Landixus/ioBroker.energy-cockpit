@@ -157,6 +157,10 @@ svg.links{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible
 .cons .num{font-size:calc(1.1rem*var(--vs,1))}.cons .unit{font-size:calc(.7rem*var(--vs,1));margin-left:3px}
 .cons.on .num{color:rgb(var(--c))}
 .c-sec{margin-left:auto;padding-left:6px;font-size:calc(.72rem*var(--ts,1));color:rgb(var(--mut));white-space:nowrap;font-variant-numeric:tabular-nums}
+.cons.charger{display:grid;grid-template-columns:32px minmax(0,1fr);gap:4px 8px}
+.cons.charger .ico{margin-right:0}
+.cons.charger .lbl{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.cons.charger .c-sec{grid-column:2;margin:0;padding:0;white-space:normal}
 footer{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));grid-gap:10px;gap:10px;margin-top:20px;padding-top:18px;border-top:1px solid var(--stroke);position:relative}
 .stat{display:flex;flex-direction:column;padding:11px 13px;border-radius:15px;background:rgba(var(--ov),.028);border:1px solid rgba(var(--ov),.04)}
 .stat span{font-size:calc(.62rem*var(--ts,1));color:rgb(var(--mut));text-transform:uppercase;letter-spacing:.09em;font-weight:650;display:flex;align-items:center;margin-bottom:5px}
@@ -1162,8 +1166,9 @@ class EnergyCockpitFlowCard extends HTMLElement {
         const box = (e) => { const b = e.getBoundingClientRect(); return { t: (b.top - sr.top) / k0, b: (b.bottom - sr.top) / k0, l: (b.left - sr.left) / k0, r: (b.right - sr.left) / k0 }; };
         const A = box(ea), B = box(eb), f = (n) => n.toFixed(1);
         if (from.startsWith('charger')) {
-          const ax = (A.l + A.r) / 2, bx = (B.l + B.r) / 2;
-          const y = (A.t + B.b) / 2;
+          const ax = A.l + (A.r - A.l) * 0.75, bx = (B.l + B.r) / 2;
+          // Stay in the gap above the consumer row, below the neighboring grid/PV tiles.
+          const y = A.t - Math.min(12, Math.max(0, (A.t - B.b) / 2));
           set(`M${f(ax)},${f(A.t)} L${f(ax)},${f(y)} L${f(bx)},${f(y)} L${f(bx)},${f(B.b)}`);
           continue;
         }
@@ -1186,7 +1191,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
       if (!L.el.offsetParent) { L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', '')); continue; }
       const r = L.el.getBoundingClientRect();
       const top = (r.top - sr.top) / k0, bottom = (r.bottom - sr.top) / k0, left = (r.left - sr.left) / k0, right = (r.right - sr.left) / k0;
-      const ncx = (left + right) / 2, ncy = (top + bottom) / 2;
+      const ncx = L.k.startsWith('charger') ? left + (right - left) * 0.25 : (left + right) / 2, ncy = (top + bottom) / 2;
       let ax, ay, tx, ty;
       // Erzeuger, Netz und Batterie stehen neben dem Ring: Linie immer seitlich anschließen (nie hinter anderen Kacheln)
       const sideOnly = (this._mode !== 'narrow' || this._cmp) && (['pv', 'pv2', 'grid'].includes(L.k) || /^bat\d*$/.test(L.k));

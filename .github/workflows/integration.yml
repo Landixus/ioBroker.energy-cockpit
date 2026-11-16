@@ -33,7 +33,7 @@ jobs:
             sleep 2
           done
           docker exec ec-ci iobroker status
-          docker cp iobroker.energy-cockpit-0.1.0-alpha.7.tgz ec-ci:/tmp/cockpit.tgz
+          docker cp iobroker.energy-cockpit-0.1.0-alpha.8.tgz ec-ci:/tmp/cockpit.tgz
           docker cp test/integration/lifecycle.cjs ec-ci:/tmp/lifecycle.cjs
           docker exec ec-ci iobroker url /tmp/cockpit.tgz energy-cockpit
           docker exec ec-ci iobroker add energy-cockpit
