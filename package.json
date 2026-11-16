@@ -1,6 +1,6 @@
 {
   "name": "iobroker.energy-cockpit",
-  "version": "0.1.0-alpha.5",
+  "version": "0.1.0-alpha.6",
   "description": "ioBroker port of the original Energy-Cockpit dashboard",
   "author": "Landixus",
   "license": "MIT",

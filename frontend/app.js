@@ -150,9 +150,12 @@ function generatedCards(config) {
       : undefined,
     pv2: has("pv2") ? { entity: a("pv2") } : undefined,
     grid: has("grid") ? { entity: a("grid") } : undefined,
-    home: has("house") ? { entity: a("house") } : undefined,
+    home: has("house")
+      ? { entity: a("house") }
+      : { name: "Hausverbrauch (berechnet)" },
     batteries: [],
     consumers: [],
+    rest: { name: "Weitere Hausverbraucher" },
   };
   const groups = new Map();
   for (const m of config.mappings.filter((m) =>

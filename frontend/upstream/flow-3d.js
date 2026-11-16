@@ -172,7 +172,7 @@ function meter(grid,pre,large,text,label){
   f+=`<rect x="19" y="${y(20)}" width="${W-38}" height="20" rx="1" fill="#0a1410"/>`;
   if(large)f+=`<text x="${W/2}" y="${y(34)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="rgb(${col})" style="font-family:inherit;font-variant-numeric:tabular-nums">${text}</text>`;
   f+=`<circle class="${run?'d3-lamp':''}" cx="24" cy="${y(52)}" r="3" fill="rgb(${col})" style="animation-duration:${speed}"/>`;
-  if(large)f+=`<text x="${W-20}" y="${y(55)}" text-anchor="end" font-size="8.5" font-weight="800" fill="#334155" style="font-family:var(--font)">${imp?'+A':exp?'−A':'0'}</text>`;
+  if(large)f+=`<text x="${W-20}" y="${y(55)}" text-anchor="end" font-size="8.5" font-weight="800" fill="#334155" style="font-family:var(--font)">${grid===null?'—':imp?'+A':exp?'−A':'0'}</text>`;
   f+=`<polygon points="26,${y(12)} 40,${y(12)} 30,${y(70)} 16,${y(70)}" fill="#fff" fill-opacity=".09"/>`;
   f+=`<polygon points="${W/2},-42 ${W/2-12},-20 ${W/2+12},-20" fill="#f5c542" stroke="#1b1b1b" stroke-width="1" stroke-linejoin="round"/><polygon points="${W/2+1.5},-36 ${W/2-3.5},-28 ${W/2-.5},-28 ${W/2-1.5},-23 ${W/2+3.5},-30 ${W/2+.5},-30" fill="#1b1b1b"/>`;
   f+=`<circle cx="${W-11}" cy="-30" r="2.4" style="fill:var(--slot)"/>`;

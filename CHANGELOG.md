@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.6
+
+- Separate grid power from household consumption. Derive household consumption only when all configured sources are available; failed house meters remain unavailable.
+- Withhold source shares, source-colored rings and inferred cross-device routing for incomplete or contradictory balances.
+- Label grid-plus-solar as a partial sum when household consumption is unknown.
+- Treat the unassigned consumer remainder as unknown if household or consumer measurements are missing.
+- Add classic and 3D regressions for import, export, charging, discharging, missing sensors and inconsistent measurements.
+
 ## 0.1.0-alpha.5
 
 - Add `rest.reverse_flow` to reverse only the remainder connection animation and its arrow. Values and all other flow directions are unchanged.

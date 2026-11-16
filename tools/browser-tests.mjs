@@ -69,6 +69,14 @@ try {
   );
   assert.equal(await page.locator('[data-p="aut"]').innerText(), "—");
   assert.equal(await page.locator('[data-p="self"]').innerText(), "—");
+  for (const source of ["pv", "bat", "grid"])
+    assert.equal(await page.locator(`[data-m="${source}"]`).innerText(), "—");
+  assert.equal(
+    await page
+      .locator('[data-o="home"] polyline[style*="stroke:rgb("]')
+      .count(),
+    0,
+  );
   assert.match(
     await page.evaluate(() =>
       document.querySelector("energy-cockpit-flow-card")._whyHtml(),

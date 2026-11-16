@@ -23,3 +23,11 @@ Advanced JSON preserves original card options under `cards.flow`, `cards.devices
 The Cockpit login has permission to view mappings and save this adapter's configuration. There are no unauthenticated mutation routes. Device control is disabled in this version.
 
 `cards.flow.rest.reverse_flow: true` reverses only the remainder connection animation and direction arrow toward the house. This is a visual override; it does not reclassify the remainder as measured grid power or change calculations. Default: false.
+
+## Grid power and household load
+
+A utility meter reporting positive import and negative export belongs to the `grid` role. It is not a `house` measurement. Do not map the same source as both.
+
+When no house meter is configured, the standard AC layout derives household power as solar + signed grid - battery charging power (negative battery power denotes discharging), but only when all configured source measurements are available. DC-coupled special layouts require a measured household value. A configured house meter that fails is never silently replaced with a calculation.
+
+With unknown storage power, the card shows a clearly labeled grid-plus-solar partial sum, while household power, the consumer remainder and source percentages remain unavailable. Source shares follow the original source-priority allocation and are also withheld if the balance differs by more than 20 W or 5% of household power, whichever is larger. The remainder is household load minus individually measured consumers; it is not grid import.

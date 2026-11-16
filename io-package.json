@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.5",
+    "version": "0.1.0-alpha.6",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
@@ -22,6 +22,10 @@
       "0.1.0-alpha.5": {
         "en": "Allow reversing the selected remainder animation",
         "de": "Flussrichtung der Rest-Kachel gezielt umkehrbar"
+      },
+      "0.1.0-alpha.6": {
+        "en": "Correct grid/household semantics and withhold incomplete source shares",
+        "de": "Netz und Hausverbrauch korrekt trennen; unvollstaendige Anteile ausblenden"
       }
     },
     "titleLang": {

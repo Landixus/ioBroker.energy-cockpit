@@ -1,4 +1,13 @@
-# Verification report - 0.1.0-alpha.5
+# Verification report - 0.1.0-alpha.6
+
+## Alpha.6 grid and household correction
+
+- 18 unit/API tests and six dashboard browser groups passed locally.
+- 50 UI scenarios passed, including 22 new classic/3D cases covering source shares, import/export, battery charging/discharging, missing battery/grid/PV/consumer readings, a failed house meter and inconsistent measurements.
+- ESLint and TypeScript passed.
+- Production deployment and full CI verification are pending.
+
+## Previous alpha.5 verification
 
 ## Alpha.5 visual direction override
 

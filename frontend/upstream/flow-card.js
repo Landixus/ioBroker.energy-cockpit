@@ -82,6 +82,8 @@ svg.links{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible
 .link.rev .flow{animation-direction:reverse}
 .direction{fill:rgb(var(--c));stroke:var(--panel);stroke-width:1;opacity:0;pointer-events:none}
 .link.on .direction{opacity:1}
+.mix[data-incomplete="true"]:after{content:"Herkunft nicht vollständig bestimmbar";flex-basis:100%;text-align:center;color:rgb(var(--mut));font-size:.7rem}
+.balance-sub{font-size:.7rem;color:rgb(var(--mut));margin-top:5px;max-width:280px}.balance-sub:empty{display:none}
 @keyframes dash{from{stroke-dashoffset:0}to{stroke-dashoffset:-18}}
 .layout{position:relative;z-index:1;display:grid;grid-template-columns:1fr minmax(170px,1.15fr) 1fr;grid-template-areas:"pv hub bat" "grid hub bat";grid-gap:24px 34px;gap:24px 34px;align-items:center}
 .node{position:relative;padding:15px 16px;border-radius:22px;background:linear-gradient(160deg,rgba(var(--ov),.065),rgba(var(--ov),.015)),var(--panel);border:1px solid var(--stroke);cursor:pointer;transition:border-color .5s,box-shadow .5s,transform .25s,opacity .5s;min-width:0}
@@ -967,6 +969,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
                 <ha-icon icon="mdi:home-lightning-bolt-outline"></ha-icon>
                 <div class="val"><span class="num">—</span><span class="unit"></span></div>
                 <div class="hub-lbl">${esc((c.home && c.home.name) || T('flow.home'))}</div>
+                <div class="balance-sub"></div>
               </div>
             </div>
             <div class="mix">
@@ -1355,7 +1358,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
     };
     if (c.pv) solar('pv', c.pv, Math.max(0, v.pv1 || 0));
     if (c.pv2 && c.pv2.entity) solar('pv2', c.pv2, Math.max(0, v.pv2 || 0));
-    if (c.grid) { const g = v.grid || 0; put('grid', [q(g), large].join(), () => D3.meter(g, 'grid', large, this._fW(g), c.grid.name || T('flow.grid'))); }
+    if (c.grid) { const g = v.grid; put('grid', [q(g), large].join(), () => D3.meter(g, 'grid', large, this._fW(g), c.grid.name || T('flow.grid'))); }
     v.bats.filter((x) => !x.lead).forEach((x) => {
       const k = this._bk(x.i), p = x.p || 0, grp = [x].concat(x.shared || []);
       const socs = grp.map((o) => (o.soc === null ? null : Math.round(o.soc)));
@@ -1550,7 +1553,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
       // Getrennte Sensoren für Laden und Entladen (z. B. SunEnergyXT): Laden positiv, Entladen negativ
       if (!b.power && (b.power_charge || b.power_discharge)) {
         const pc = b.power_charge ? watt(h, b.power_charge) : null, pd = b.power_discharge ? watt(h, b.power_discharge) : null;
-        p = pc === null && pd === null ? null : (pc || 0) - (pd || 0);
+        p = c.strict_data && ((b.power_charge && pc === null) || (b.power_discharge && pd === null)) ? null : pc === null && pd === null ? null : (pc || 0) - (pd || 0);
       }
       if (p !== null && b.invert) p = -p;
       // pv_to_battery: direkt: Ausgang des vorgeschalteten Speichers; ohne eigenen Leistungssensor ergibt sich Laden = PV-Eingang - Ausgang
@@ -1585,8 +1588,16 @@ class EnergyCockpitFlowCard extends HTMLElement {
     if (home !== null && home < 0) home = null;
     // Mit eigenem Sensor gilt dessen Wert, die Abgabe käme sonst im Ring dazu, nicht aber in der Zahl
     const bmDis = home === null ? bats.reduce((a, x) => (x.b.behind_meter === true ? a + (x.i === this._via2 ? (x.out || 0) : Math.max(0, -(x.p || 0))) : a), 0) : 0;
+    const sourcesKnown = grid !== null && (!c.grid2?.entity || watt(h, c.grid2.entity) !== null) &&
+      (!c.pv?.entity || pv1 !== null) && (!c.pv2?.entity || pv2 !== null) &&
+      bats.every(x => x.lead || x.p !== null);
+    // A missing measurement is not zero. Do not replace a failed house meter with an estimate.
+    const canDeriveHome = sourcesKnown && !this._via && this._via2 < 0;
     if (home === null && !c.strict_data) home = Math.max(0, (pv || 0) - pv2Via + (grid || 0) - (bat || 0) + bmDis);
+    else if (home === null && c.strict_data && !c.home?.entity && canDeriveHome) home = Math.max(0, (pv || 0) + grid - (bat || 0) + bmDis);
     else if (home !== null && c.pv2 && c.pv2.add_to_home) home += Math.max(0, pv2 || 0);
+    this._set('.balance-sub', c.strict_data && home === null && grid !== null && pv !== null
+      ? `Netz + Solar: ${this._fW(grid + pv - pv2Via)} · Teilbilanz (kein vollständiger Hausverbrauch)` : '');
 
     // grid2: Bezug des zweiten Zählers. Er steckt nicht im Hauptzähler: Hausverbrauch und Netzanteil im Ring werden um ihn größer
     const g2w = c.grid2 ? Math.max(0, watt(h, c.grid2.entity) || 0) : 0;
@@ -1597,9 +1608,14 @@ class EnergyCockpitFlowCard extends HTMLElement {
     const pvHome = Math.min(Math.max(0, (pv || 0) - pv2Via), Math.max(0, home - gImp - bDis));
     const tot = pvHome + gImp + bDis;
 
-    const gridKnown = !c.strict_data || (grid !== null && (!c.grid2?.entity || watt(h, c.grid2.entity) !== null));
-    this._set('[data-p="aut"]', gridKnown && home > TH ? this._fp(1 - gImp / home) : '—');
-    this._set('[data-p="self"]', gridKnown && (pv || 0) > TH ? this._fp(1 - gExp / pv) : '—');
+    // Never normalize a known subset to 100%. Inconsistent simultaneous readings also withhold shares.
+    const balanceError = (pv || 0) - pv2Via + (grid || 0) + g2w - (bat || 0) + bmDis - home;
+    const mixKnown = !c.strict_data || (sourcesKnown && home !== null && Math.abs(balanceError) <= Math.max(20, home * 0.05));
+    const restKnown = !c.strict_data || (home !== null &&
+      [...c.consumers, ...(c.consumer_groups || []).flatMap(g => g.items || [])].every(x => !x.entity || this._cw(x) !== null) &&
+      bats.every(x => x.b.behind_meter !== true || x.lead || x.p !== null));
+    this._set('[data-p="aut"]', mixKnown && home > TH ? this._fp(1 - gImp / home) : '—');
+    this._set('[data-p="self"]', mixKnown && (pv || 0) > TH ? this._fp(1 - gExp / pv) : '—');
 
     // Aufteilung je Quelle: PV 2 (Balkonkraftwerk) deckt zuerst das Haus, PV 1 lädt danach die Batterie und speist ein
     const need = Math.max(0, home - gImp - bDis);
@@ -1616,6 +1632,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
     // Zeilen untereinander (Name links, Wert rechts): Haus, Batterie, Netz, Strings, Prognose
     const row = (label, val) => `<div class="sr"><span>${label}</span> <b>${val}</b></div>`;
     const useText = (home_, bat_, exp_) => {
+      if (c.strict_data && !mixKnown) return row('Aufteilung', 'unbekannt');
       const use = [];
       if (home_ > TH) use.push(row(T('pv.use.home'), this._fW(home_)));
       if (bat_ > TH) use.push(row(T('pv.use.bat'), this._fW(bat_)));
@@ -1730,19 +1747,23 @@ class EnergyCockpitFlowCard extends HTMLElement {
       } else this._link(key, on && !x.lead, !chg, col, bp);
     });
     if (this._s3d) {
-      this._routes3d({ bats, gImp: gImpM, gExp, p1Home: p1Home + p1Rest, p2Home: p2Home + p2Rest, p1Bat, p1Exp, p2Exp, pv2Bat: p2Bat });
-      this._draw3d({ pv1, pv2, grid, home, bats, src: { pv: pvHome, bat: bDis, imp: gImp } });
+      if (mixKnown) this._routes3d({ bats, gImp: gImpM, gExp, p1Home: p1Home + p1Rest, p2Home: p2Home + p2Rest, p1Bat, p1Exp, p2Exp, pv2Bat: p2Bat });
+      else this._links.filter(L => L.k.startsWith('r:')).forEach(L => this._link(L.k, false, true, PAL.mut, 0));
+      this._draw3d({ pv1, pv2, grid, home, bats, src: mixKnown ? { pv: pvHome, bat: bDis, imp: gImp } : { pv: 0, bat: 0, imp: 0 } });
     }
     this._banner({ pv, grid, bat, soc, home, gImp: gImpM, gExp });
     // Momentaufnahme fuer die "Warum?"-Erklaerung (why)
     this._wy = { home, pv: pv || 0, pvHome, bDis, bmChg, gImp, gExp, bats: bats.filter((x) => !x.lead).map((x) => Object.assign({ n: x.b.name || T('flow.battery'), p: x.p, soc: x.soc }, this._limits(x.b))) };
     this._anim('home', home, this._$('.core'));
-    const sh = { pv: tot ? pvHome / tot : 0, bat: tot ? bDis / tot : 0, grid: tot ? gImp / tot : 0 };
+    const mixTotal = mixKnown ? tot : 0;
+    const sh = { pv: mixTotal ? pvHome / mixTotal : 0, bat: mixTotal ? bDis / mixTotal : 0, grid: mixTotal ? gImp / mixTotal : 0 };
+    this._$('.mix').dataset.incomplete = String(!mixKnown);
+    this._$('.mix').title = mixKnown ? '' : 'Erzeugungs-, Netz- oder Speichermessung fehlt, oder die Leistungsbilanz ist widersprüchlich.';
     // home_color: source (optional): Die Zahl über dem Haus nimmt die Farbe der Quelle mit dem größten Anteil. Erst ab 5 Punkten Vorsprung wechselt die Farbe
     const hn = this._$('.core .num');
     if (hn) {
       let col = '';
-      if (c.home_color === 'source' && tot > 0) {
+      if (c.home_color === 'source' && mixTotal > 0) {
         const lead = ['pv', 'bat', 'grid'].reduce((a, k) => (sh[k] > sh[a] ? k : a), 'pv');
         const keep = this._hc && sh[this._hc] >= sh[lead] - 0.05 ? this._hc : lead;
         this._hc = keep;
@@ -1760,7 +1781,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
       seg.style.strokeDashoffset = `${(-(start + gap / 2)).toFixed(2)}`;
       seg.style.opacity = len < 0.5 ? '0' : '1';
       start += len;
-      this._set(`[data-m="${k}"]`, tot ? Math.round(sh[k] * 100) + ' %' : '—');
+      this._set(`[data-m="${k}"]`, mixTotal ? Math.round(sh[k] * 100) + ' %' : '—');
     });
     let sumAll = 0;
     this._wyItems = [];
@@ -1791,7 +1812,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
     // Kachel "Nicht erfasst" bei einzelnen Verbrauchern (hide_rest: false): Hausverbrauch minus Summe der Verbraucher
     const crel = this._$('[data-k="crest"]');
     if (crel) {
-      const restW = Math.max(0, home - sumAll - bmChg), restMin = parseFloat(c.rest_min) || 0;
+      const restW = restKnown ? Math.max(0, home - sumAll - bmChg) : null, restMin = parseFloat(c.rest_min) || 0;
       const show = restMin <= 0 || (home > TH && restW / home * 100 >= restMin), on = show && restW > TH;
       crel.style.display = show ? '' : 'none';
       crel.classList.toggle('on', on);
@@ -1837,7 +1858,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
         this._link('g' + i, on, false, rgb(g.color, '167,139,250'), sum);
       });
       const rel = this._$('[data-k="grest"]');
-      const restW = Math.max(0, home - known - bmChg);
+      const restW = restKnown ? Math.max(0, home - known - bmChg) : null;
       const restMin = parseFloat(c.rest_min) || 0;
       const restShow = !!rel && (restMin <= 0 || (home > TH && restW / home * 100 >= restMin));
       if (rel) { rel.style.display = restShow ? '' : 'none'; if (restShow) vis++; }
@@ -1848,12 +1869,12 @@ class EnergyCockpitFlowCard extends HTMLElement {
         this._schedLayout();
       }
       if (rel) {
-        const rest = Math.max(0, home - known - bmChg);
+        const rest = restW;
         const on = rest > TH;
         rel.classList.toggle('on', on);
         this._anim('grest', rest, rel);
         this._link('grest', on, c.rest?.reverse_flow === true, PAL.mut, rest);
-        this._set('.rest-t', home > TH ? T('flow.restpct', { n: Math.round(Math.min(1, (known + bmChg) / home) * 100) }) : '');
+        this._set('.rest-t', c.strict_data ? (restKnown ? 'Hausverbrauch minus einzeln gemessene Verbraucher · kein Netzbezug' : 'Rest unbekannt: Hausverbrauch oder Einzelmessungen fehlen') : home > TH ? T('flow.restpct', { n: Math.round(Math.min(1, (known + bmChg) / home) * 100) }) : '');
       }
     }
     if (this._sam) {

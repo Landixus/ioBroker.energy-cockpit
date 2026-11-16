@@ -276,6 +276,207 @@ try {
     "Selected remainder animation reverses without changing values or other consumer directions",
   );
   assert.deepEqual(errors, []);
+  const cases = [
+    {
+      name: "import with idle battery",
+      grid: 300,
+      pv: 100,
+      battery: 0,
+      home: 400,
+      rest: 350,
+      shares: ["25 %", "0 %", "75 %"],
+    },
+    {
+      name: "battery discharge",
+      grid: 300,
+      pv: 100,
+      battery: -100,
+      home: 500,
+      rest: 450,
+      shares: ["20 %", "20 %", "60 %"],
+    },
+    {
+      name: "battery charge",
+      grid: 300,
+      pv: 100,
+      battery: 100,
+      home: 300,
+      rest: 250,
+      shares: ["0 %", "0 %", "100 %"],
+    },
+    {
+      name: "export",
+      grid: -50,
+      pv: 100,
+      battery: 0,
+      home: 50,
+      rest: 0,
+      shares: ["100 %", "0 %", "0 %"],
+    },
+    {
+      name: "unknown battery",
+      grid: 300,
+      pv: 100,
+      battery: null,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "unknown grid",
+      grid: null,
+      pv: 100,
+      battery: 0,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "unknown solar",
+      grid: 300,
+      pv: null,
+      battery: 0,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "missing consumer",
+      grid: 300,
+      pv: 100,
+      battery: 0,
+      device: null,
+      home: 400,
+      rest: null,
+      shares: ["25 %", "0 %", "75 %"],
+    },
+    {
+      name: "failed house meter",
+      grid: 300,
+      pv: 100,
+      battery: 0,
+      measured: null,
+      home: null,
+      rest: null,
+    },
+    {
+      name: "contradictory house meter",
+      grid: 300,
+      pv: 100,
+      battery: 0,
+      measured: 600,
+      home: 600,
+      rest: 550,
+    },
+    {
+      name: "missing split charge power",
+      grid: 300,
+      pv: 100,
+      battery: 0,
+      split: true,
+      home: null,
+      rest: null,
+    },
+  ];
+  for (const style of ["3d", "classic"])
+    for (const scenario of cases) {
+      await page.evaluate(
+        ({ style, scenario }) => {
+          document.querySelector("energy-cockpit-flow-card")?.remove();
+          const card = document.createElement("energy-cockpit-flow-card");
+          card.setConfig({
+            style,
+            strict_data: true,
+            grid: { entity: "sensor.grid" },
+            pv: { entity: "sensor.pv" },
+            home: Object.hasOwn(scenario, "measured")
+              ? { entity: "sensor.house" }
+              : { name: "Hausverbrauch (berechnet)" },
+            battery: scenario.split
+              ? {
+                  power_charge: "sensor.charge",
+                  power_discharge: "sensor.discharge",
+                }
+              : { power: "sensor.battery" },
+            rest: { name: "Weitere Hausverbraucher" },
+            consumer_groups: [
+              {
+                name: "Technik",
+                items: [{ entity: "sensor.device", name: "Testgerät" }],
+              },
+            ],
+          });
+          document.body.append(card);
+          const s = (value) => ({
+            state:
+              value === null || value === undefined
+                ? "unavailable"
+                : String(value),
+            attributes: { unit_of_measurement: "W" },
+          });
+          card.hass = {
+            language: "de",
+            locale: { language: "de" },
+            themes: { darkMode: true },
+            states: {
+              "sensor.grid": s(scenario.grid),
+              "sensor.pv": s(scenario.pv),
+              "sensor.battery": s(scenario.battery),
+              "sensor.device": s(
+                Object.hasOwn(scenario, "device") ? scenario.device : 50,
+              ),
+              "sensor.house": s(scenario.measured),
+              "sensor.charge": s(null),
+              "sensor.discharge": s(0),
+            },
+          };
+        },
+        { style, scenario },
+      );
+      await page.waitForFunction(() =>
+        document
+          .querySelector("energy-cockpit-flow-card")
+          .shadowRoot.querySelector('[data-l="grid"] .flow')
+          ?.getAttribute("d"),
+      );
+      assert.equal(
+        await page.locator(".core .num").textContent(),
+        scenario.home === null ? "—" : String(scenario.home),
+        scenario.name,
+      );
+      assert.equal(
+        await page.locator('[data-k="grest"] .num').textContent(),
+        scenario.rest === null ? "—" : String(scenario.rest),
+        scenario.name,
+      );
+      for (const [i, source] of ["pv", "bat", "grid"].entries())
+        assert.equal(
+          await page.locator(`[data-m="${source}"]`).textContent(),
+          scenario.shares?.[i] ?? "—",
+          scenario.name,
+        );
+      if (scenario.rest === null)
+        assert.equal(
+          await page.locator('[data-l="grest"].on').count(),
+          0,
+          scenario.name,
+        );
+      if (scenario.grid > 0)
+        assert.equal(
+          await page.locator('[data-l="grid"].on:not(.rev)').count(),
+          1,
+          scenario.name,
+        );
+      if (!scenario.shares && style === "3d")
+        assert.equal(
+          await page
+            .locator('[data-o="home"] polyline[style*="stroke:rgb("]')
+            .count(),
+          0,
+          scenario.name,
+        );
+      results.push(
+        `${style}: ${scenario.name}, household and source shares checked`,
+      );
+    }
+  assert.deepEqual(errors, []);
   await writeFile(
     "test-results/ui-regression.json",
     JSON.stringify({ passed: results, errors }, null, 2),
