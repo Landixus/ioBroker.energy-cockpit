@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+- Keep power units inside narrow 3D tiles on Linux system fonts.
+- Reserve consistent space for statistics explanations across reporting periods.
+- Preserve all existing layout assertions; add a targeted Linux regression workflow.
+
 ## 0.1.0-alpha.1
 
 - Port original Energy-Cockpit 0.32.5 presentation to a native ioBroker adapter.

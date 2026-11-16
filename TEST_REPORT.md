@@ -1,4 +1,4 @@
-# Verification report — 0.1.0-alpha.1
+# Verification report — 0.1.0-alpha.2
 
 Executed on 2026-11-16. This is a functioning installed integration candidate, not completion of every production acceptance requirement.
 

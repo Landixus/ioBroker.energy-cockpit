@@ -1,11 +1,15 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.1",
+    "version": "0.1.0-alpha.2",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
-        "de": "Erste ioBroker-Portierung; gepr?fter Umfang in TEST_REPORT.md"
+        "de": "Erste ioBroker-Portierung; Umfang siehe TEST_REPORT.md"
+      },
+      "0.1.0-alpha.2": {
+        "en": "Correct cross-platform compact flow and statistics layouts",
+        "de": "Kompakte Energiefluss- und Statistikansicht korrigiert"
       }
     },
     "titleLang": {

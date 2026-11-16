@@ -31,6 +31,8 @@ The upstream `src`, `dist`, `docs`, `test`, `tools`, build metadata, README and 
 
 Strict mode also withholds partial battery power and live autarky/self-consumption when the grid measurement is missing. Voltage-only battery profiles remain visible with unknown power/SOC instead of disappearing.
 
+The 3D power value can wrap its unit at very narrow widths. `stats-card.js` reserves two lines for cost explanations, preventing a height jump when the selected period lacks cost history. These fixes address Linux font metrics without relaxing the original layout assertions.
+
 `test/upstream/flow-big.html`: measure the large consumer tile before mounting the comparison card. The original test read its width after removing it from the DOM, producing zero. The assertion itself is retained.
 
 No Home Assistant service is silently implemented as a guessed ioBroker control. Weather/calendar dependencies remain explicitly unavailable. The original test CDN is intercepted by the browser test runner and served from locally licensed MDI assets.
