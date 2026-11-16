@@ -9,3 +9,5 @@ Use main for releasable commits, develop for integration and feature/fix branche
 Before release run tests, dependency audit and `tools/secret-scan.mjs`, inspect `npm pack --dry-run`, then create a prerelease or release with a matching version. A passing local test is not evidence of production readiness: maintain the acceptance matrix in TEST_REPORT.md.
 
 Never add local access files, remote inventories, telemetry dumps or database backups to Git. `.private/`, `secrets.txt`, `.env*` and generated packages are ignored. No source code reads `secrets.txt`; only private deployment tooling uses it.
+
+The browser command also runs `tools/ui-regression.mjs`: it checks Admin text contrast and checkbox interaction, plus grid animation direction and missing/zero power on desktop and mobile. Optional local copies of the installed Admin stylesheets can be kept under `.private/adapter.css` and `.private/materialize.css`; these are never packaged or published.

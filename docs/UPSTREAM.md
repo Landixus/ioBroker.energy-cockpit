@@ -40,3 +40,5 @@ The 3D power value can wrap its unit at very narrow widths. `stats-card.js` rese
 No Home Assistant service is silently implemented as a guessed ioBroker control. Weather/calendar dependencies remain explicitly unavailable. The original test CDN is intercepted by the browser test runner and served from locally licensed MDI assets.
 
 The build replaces original `new Date(...)` calendar constructors with a Europe/Berlin-bound TZDate subclass. Epoch timestamps and Date.parse/Date.now retain their standard meaning. @date-fns/tz is MIT licensed and its license is shipped in the frontend build. Enlarged consumer columns now scale with label size instead of remaining fixed-width.
+
+`flow-3d.js`: the grid meter cable now sends import out of the meter toward the house connection and export into the meter. `flow-card.js` adds static tangent-aligned direction arrows and caps dotted motion speed to make direction legible at lower frame rates. Main path sign conventions remain positive for grid import and negative for export.

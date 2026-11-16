@@ -6,7 +6,11 @@
 - Six existing dashboard browser groups passed without page errors.
 - 27 additional browser cases passed: seven Admin themes (text contrast at least 4.5:1 and checkbox interaction), plus 20 desktop/mobile 3D/classic cases for grid import, export, high power, zero and unavailable readings. Local Admin rendering also used the installed Admin 8.2.0 stylesheets; copies remain private.
 - Existing upstream `flow-3d.html` and `flow-anim.html` assertion suites passed.
-- Production deployment and CI verification for this update are pending.
+- [Full Node 22/24 CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43833142623) passed, including all 42 original HTML pages (33 assertion pages, 9 smoke pages) on both Node versions.
+- [Isolated installation and restart](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43833904888) passed. Earlier attempts exposed a test-harness startup race: temporary setup DB ports are not readiness evidence. The workflow now waits for the actual Admin HTTP listener before invoking the CLI.
+- [Release workflow](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43833148453) passed. The published package checksum was verified and all 77 packaged files matched the local build after line-ending normalization.
+- Production updated to alpha.4 after a fresh controller-validated readable backup. Installed frontend and uploaded Admin files match the tested assets. Native configuration is byte-for-byte equivalent as parsed JSON; existing container IDs/start times are unchanged. Energy-Cockpit, MQTT, JavaScript and InfluxDB status checks passed.
+- Production browser verification passed: authenticated real snapshot, original 3D, incomplete-grid explanation, historical comparison, tablet/mobile layout and persisted touch theme; no page errors. Grid direction cases use synthetic inputs because this installation still has no verified grid-power mapping.
 
 ## Previous alpha.3 baseline
 
