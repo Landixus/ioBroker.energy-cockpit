@@ -6,8 +6,8 @@ jobs:
   browser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -16,7 +16,7 @@ jobs:
       - run: node tools/upstream-tests.mjs flow-3d
       - run: node tools/upstream-tests.mjs stats-stable
         if: always()
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: layout-regressions
