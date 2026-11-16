@@ -1,5 +1,7 @@
 # Configuration
 
+Under **Einrichtung → Aussehen**, disable **Hausverbrauch (Zahl und Beschriftung) anzeigen** to hide the household number and caption, or **Weitere Hausverbraucher anzeigen** to hide the unassigned consumer tile and its connection. The live preview updates immediately. Click **Prüfen & speichern** to persist the selection. Both controls can be enabled again independently. They only affect presentation; power balance, source shares, the house graphic and sensor mappings remain unchanged. The corresponding advanced options are `cards.flow.hide_home_value` and `cards.flow.hide_rest`.
+
 ## External AC charger and battery inverter
 
 Use `battery_charge` for the charger's positive AC input power and `battery_discharge` for the inverter's positive AC output power. Give both mappings and the corresponding BMS telemetry the same battery `group`. This creates one battery tile with SOC, temperature and extra voltage/current readings, plus a dedicated charger tile. It does not create two independent batteries. Map the charger only once; do not also assign its input as an ordinary consumer. A matching `consumer_energy` mapping (same group/name) may supply its existing energy counter in Devices.

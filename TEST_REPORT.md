@@ -1,4 +1,11 @@
-# Verification report - 0.1.0-alpha.8
+# Verification report - 0.1.0-alpha.9
+
+## Alpha.9 display controls
+
+- 18 unit/API tests, seven standalone browser groups, 70 UI regression scenarios, ESLint and TypeScript passed locally.
+- New browser checks exercise both visibility switches in classic and 3D previews, restore each display, and verify unchanged household calculations/source shares and a retained house graphic.
+- A fresh controller backup was validated before installation. Production UI-save verification and release checks are pending at this commit.
+- Private screenshot `sc3.png` is excluded from source control. Pattern and exact private-value scans passed for source and the package.
 
 ## Alpha.8 charger layout
 

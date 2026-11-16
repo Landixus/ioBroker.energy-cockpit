@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.9
+
+- Add appearance switches for household power/caption and the unassigned consumer tile, with live preview and persistent configuration.
+- Preserve house rendering, source-share calculations and source mappings when either display is hidden.
+
 ## 0.1.0-alpha.8
 
 - Keep charger labels and AC input descriptions readable down to 320 px.

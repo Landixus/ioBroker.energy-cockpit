@@ -137,6 +137,7 @@ svg.links{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible
 .core{position:absolute;top:14%;left:14%;right:14%;bottom:14%;border-radius:50%;background:radial-gradient(circle at 50% 28%,var(--bg2),var(--bg0) 72%);border:1px solid rgba(var(--ov),.08);box-shadow:0 0 0 1px rgba(var(--home),.35),inset 0 1px 0 rgba(var(--ov),.07);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .core ha-icon{color:rgb(var(--home));--mdc-icon-size:26px;margin-bottom:6px}
 .core .val{margin:0}
+.core.hide-value .val,.core.hide-value .hub-lbl{display:none}
 .core .num{font-size:calc(2.15rem*var(--vs,1));color:rgb(var(--home));text-shadow:none}
 .hub-lbl{font-size:calc(.62rem*var(--ts,1));letter-spacing:.16em;text-transform:uppercase;color:rgb(var(--mut));font-weight:650;margin-top:7px}
 .mix{display:flex;font-size:calc(.7rem*var(--ts,1));color:rgb(var(--mut));flex-wrap:wrap;justify-content:center;margin-top:14px}
@@ -974,7 +975,7 @@ class EnergyCockpitFlowCard extends HTMLElement {
                 <circle class="seg" data-g="bat" cx="60" cy="60" r="52" pathLength="100" style="color:rgb(${PAL.dis})"/>
                 <circle class="seg" data-g="grid" cx="60" cy="60" r="52" pathLength="100" style="color:rgb(${PAL.imp})"/>
               </svg>
-              <div class="core">
+              <div class="core${c.hide_home_value ? ' hide-value' : ''}">
                 <ha-icon icon="mdi:home-lightning-bolt-outline"></ha-icon>
                 <div class="val"><span class="num">—</span><span class="unit"></span></div>
                 <div class="hub-lbl">${esc((c.home && c.home.name) || T('flow.home'))}</div>

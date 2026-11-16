@@ -94,6 +94,50 @@ try {
   await page.getByRole("link", { name: "Einrichtung", exact: true }).click();
   await page.locator("[data-step]").first().waitFor();
   assert.equal(await page.locator("[data-step]").count(), 10);
+  await page.locator('[data-step="7"]').click();
+  for (const style of ["3d", "classic"]) {
+    await page.locator("#appearance").selectOption(style);
+    const readBalance = () =>
+      page.locator("#preview energy-cockpit-flow-card").evaluate((card) => ({
+        house: card._wy.home,
+        shares: [...card.shadowRoot.querySelectorAll("[data-m]")].map(
+          (e) => e.textContent,
+        ),
+      }));
+    const before = await readBalance();
+    assert.ok(before.house > 0);
+    await page.locator("#show-home-value").uncheck();
+    await page.locator("#show-rest").uncheck();
+    assert.equal(await page.locator("#preview .core .val").isVisible(), false);
+    assert.equal(await page.locator("#preview .hub-lbl").isVisible(), false);
+    assert.equal(await page.locator("#preview .mix").isVisible(), true);
+    assert.equal(
+      await page
+        .locator('#preview [data-k="grest"], #preview [data-k="crest"]')
+        .count(),
+      0,
+    );
+    assert.deepEqual(await readBalance(), before);
+    if (style === "3d")
+      assert.equal(
+        await page.locator('#preview [data-o="home"]').isVisible(),
+        true,
+      );
+    await page.locator("#show-home-value").check();
+    await page.locator("#show-rest").check();
+    assert.equal(await page.locator("#preview .core .val").isVisible(), true);
+    assert.equal(
+      await page
+        .locator('#preview [data-k="grest"], #preview [data-k="crest"]')
+        .count(),
+      1,
+    );
+    assert.deepEqual(await readBalance(), before);
+  }
+  await page.locator("#appearance").selectOption("3d");
+  results.push(
+    "Appearance switches hide and restore household text and remainder without changing source shares or house rendering",
+  );
   await page.locator('[data-step="2"]').click();
   await page
     .locator('#mapping input[name="name"]')

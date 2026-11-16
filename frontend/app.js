@@ -223,14 +223,12 @@ function generatedCards(config) {
         x.group === m.group &&
         x.name === m.name,
     );
-    rooms
-      .get(room)
-      .devices.push({
-        name: m.name,
-        power: "sensor." + m.key,
-        energy: energy ? "sensor." + energy.key : undefined,
-        lock: true,
-      });
+    rooms.get(room).devices.push({
+      name: m.name,
+      power: "sensor." + m.key,
+      energy: energy ? "sensor." + energy.key : undefined,
+      lock: true,
+    });
   }
   const stats = {
     ...common,
@@ -352,21 +350,36 @@ function renderSetup() {
       $("#" + id).onchange = (e) =>
         (draft[key] = e.target.value === "" ? null : Number(e.target.value));
   } else if (step === 7) {
-    target.innerHTML = `<label>Darstellung<select id="appearance"><option value="3d">Original 3D-Haus</option><option value="classic">Klassischer Energiefluss</option></select></label><label><span><input id="compact" type="checkbox" ${draft.cards.flow?.compact ? "checked" : ""}> Kompakte Mobilansicht</span></label><details><summary>Erweiterte Original-Kartenoptionen (JSON)</summary><p>Sensoren heißen sensor.&lt;Zuordnungsschlüssel&gt;. Alle Originaloptionen sind verfügbar, soweit sie keine Home-Assistant-Dienste benötigen.</p><textarea id="advanced">${esc(JSON.stringify(draft.cards, null, 2))}</textarea><button id="apply-advanced">Übernehmen</button></details>`;
+    draft.cards.flow ??= {};
+    target.innerHTML = `<label>Darstellung<select id="appearance"><option value="3d">Original 3D-Haus</option><option value="classic">Klassischer Energiefluss</option></select></label><label><span><input id="compact" type="checkbox" ${draft.cards.flow.compact ? "checked" : ""}> Kompakte Mobilansicht</span></label><label><span><input id="show-home-value" type="checkbox" ${!draft.cards.flow.hide_home_value ? "checked" : ""}> Hausverbrauch (Zahl und Beschriftung) anzeigen</span></label><label><span><input id="show-rest" type="checkbox" ${!draft.cards.flow.hide_rest && draft.cards.flow.rest !== false ? "checked" : ""}> Weitere Hausverbraucher anzeigen</span></label><p>Ausgeblendete Anzeigen ändern keine Messwerte oder Herkunftsanteile. Die Vorschau zeigt Änderungen sofort; dauerhaft übernehmen mit „Prüfen & speichern“.</p><details><summary>Erweiterte Original-Kartenoptionen (JSON)</summary><p>Sensoren heißen sensor.&lt;Zuordnungsschlüssel&gt;. Alle Originaloptionen sind verfügbar, soweit sie keine Home-Assistant-Dienste benötigen.</p><textarea id="advanced">${esc(JSON.stringify(draft.cards, null, 2))}</textarea><button id="apply-advanced">Übernehmen</button></details>`;
+    const updateAppearance = () => {
+      $("#advanced").value = JSON.stringify(draft.cards, null, 2);
+      preview();
+    };
     $("#appearance").value =
       draft.cards.flow?.style === "3d" ? "3d" : "classic";
     $("#appearance").onchange = (e) => {
       draft.cards.flow.style = e.target.value;
-      preview();
+      updateAppearance();
     };
     $("#compact").onchange = (e) => {
       draft.cards.flow.compact = e.target.checked;
-      preview();
+      updateAppearance();
+    };
+    $("#show-home-value").onchange = (e) => {
+      draft.cards.flow.hide_home_value = !e.target.checked;
+      updateAppearance();
+    };
+    $("#show-rest").onchange = (e) => {
+      draft.cards.flow.hide_rest = !e.target.checked;
+      if (e.target.checked && draft.cards.flow.rest === false)
+        draft.cards.flow.rest = { name: "Weitere Hausverbraucher" };
+      updateAppearance();
     };
     $("#apply-advanced").onclick = () => {
       try {
         draft.cards = JSON.parse($("#advanced").value);
-        preview();
+        renderSetup();
       } catch (e) {
         $("#setup-error").textContent = e.message;
       }

@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "energy-cockpit",
-    "version": "0.1.0-alpha.8",
+    "version": "0.1.0-alpha.9",
     "news": {
       "0.1.0-alpha.1": {
         "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
@@ -34,6 +34,10 @@
       "0.1.0-alpha.8": {
         "en": "Keep charger labels readable on mobile and separate input/output flow ports",
         "de": "Ladegeraet auf Mobilgeraeten lesbar darstellen und Flussanschluesse trennen"
+      },
+      "0.1.0-alpha.9": {
+        "en": "Add appearance switches for household power and remaining consumers",
+        "de": "Hausverbrauch und weitere Verbraucher in der Oberflaeche ein- und ausblenden"
       }
     },
     "titleLang": {
