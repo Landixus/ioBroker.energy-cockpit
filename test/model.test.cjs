@@ -19,7 +19,18 @@ const m = {
 };
 test("units and strict numeric validation", () => {
   assert.equal(normalize("1.23", m), 1230);
-  for (const v of [null, undefined, "", "1kW", NaN, Infinity, true])
+  for (const v of [
+    null,
+    undefined,
+    "",
+    "1kW",
+    NaN,
+    Infinity,
+    true,
+    [],
+    [1],
+    {},
+  ])
     assert.equal(normalize(v, m), null);
   assert.equal(normalize(1200, { ...m, dimension: "energy", unit: "Wh" }), 1.2);
   assert.equal(normalize(101, { ...m, dimension: "soc", unit: "%" }), null);

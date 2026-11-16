@@ -72,6 +72,7 @@ export function validateSettings(input: any): Settings {
       !m.id ||
       m.id.length > 512 ||
       /[\x00-\x1f*]/.test(m.id) ||
+      /(password|secret|token|credential)/i.test(m.id) ||
       m.id.startsWith("system.")
     )
       throw Error("Ungültiger Datenpunkt");
@@ -183,7 +184,7 @@ export function normalize(value: any, m: Mapping): number | null {
   if (
     value === null ||
     value === undefined ||
-    typeof value === "boolean" ||
+    !["number", "string"].includes(typeof value) ||
     (typeof value === "string" && !value.trim())
   )
     return null;

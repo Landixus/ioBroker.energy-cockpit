@@ -13,7 +13,7 @@ Executed on 2026-11-16. This is a functioning installed integration candidate, n
 | Production installation | New adapter installed in existing persistent ioBroker volume after controller-validated backup and SHA-256 verification |
 | Production dashboard | HTTPS login, real snapshot with 16 mappings, original 3D rendering and historical comparison verified. Private screenshots are excluded from Git |
 | Existing InfluxDB | Read-only requests through installed adapter succeeded for 1, 30 and 365 days. At inspection: 25/25 hourly, 24/31 daily and 0/13 monthly windows complete. Incomplete totals remain unavailable |
-| Existing services | Six existing container IDs/start times unchanged and running; seven script objects identical; MQTT, JavaScript and InfluxDB status checked; Grafana and InfluxDB health endpoints HTTP 200 |
+| Existing services | Six existing container IDs/start times unchanged and running; seven script objects and 56 Grafana panel query configurations identical; MQTT, JavaScript and InfluxDB status checked; Grafana and InfluxDB health endpoints HTTP 200 |
 | Dependency/security checks | npm audit: zero known vulnerabilities at inspection; tracked-source pattern scan and exact local private-value comparison passed for source and package |
 | GitHub Actions | Build/browser and isolated Docker workflows supplied; remote execution is recorded in GitHub Actions, not presumed from local results |
 

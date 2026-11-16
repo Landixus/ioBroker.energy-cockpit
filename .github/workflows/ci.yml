@@ -1,7 +1,13 @@
 name: Build and test
 on:
   push:
+    branches: [main, develop, "feature/**", "fix/**"]
+    paths-ignore: ["**.md", "docs/**"]
   pull_request:
+    paths-ignore: ["**.md", "docs/**"]
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
