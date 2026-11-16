@@ -26,9 +26,13 @@ jobs:
         run: |
           docker run -d --name ec-ci --label energy-cockpit.test=true --memory=1g iobroker/iobroker:latest-v11
           for i in $(seq 1 90); do
-            if docker exec ec-ci iobroker object get system.adapter.admin.0 >/dev/null 2>&1; then break; fi
+            # Do not invoke the offline-capable CLI while the controller acquires its DB locks.
+            if docker exec ec-ci node -e "Promise.all([9000,9001].map(port=>new Promise((resolve,reject)=>{const s=require('node:net').connect(port,'127.0.0.1');s.on('connect',()=>{s.end();resolve()});s.on('error',reject);s.setTimeout(1000,()=>{s.destroy();reject()})}))).then(()=>process.exit(0),()=>process.exit(1))" >/dev/null 2>&1; then
+              if docker exec ec-ci iobroker object get system.adapter.admin.0 >/dev/null 2>&1; then break; fi
+            fi
             sleep 2
           done
+          docker exec ec-ci iobroker status
           docker cp iobroker.energy-cockpit-0.1.0-alpha.4.tgz ec-ci:/tmp/cockpit.tgz
           docker cp test/integration/lifecycle.cjs ec-ci:/tmp/lifecycle.cjs
           docker exec ec-ci iobroker url /tmp/cockpit.tgz energy-cockpit
