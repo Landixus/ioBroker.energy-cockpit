@@ -5,7 +5,12 @@
 - 18 unit/API tests and six dashboard browser groups passed locally.
 - 50 UI scenarios passed, including 22 new classic/3D cases covering source shares, import/export, battery charging/discharging, missing battery/grid/PV/consumer readings, a failed house meter and inconsistent measurements.
 - ESLint and TypeScript passed.
-- Production deployment and full CI verification are pending.
+- Existing upstream 3D, explanation and animation assertion suites passed locally.
+- Production alpha.6 was installed after a fresh controller-validated backup. The owner-confirmed utility-meter power source is now assigned to grid, its old house alias is explicitly cleared, and the previous consumer-remainder direction override is disabled.
+- Authenticated live browser verification passed: incoming grid flow, unavailable household/remainder and shares with missing battery power, correctly labeled grid-plus-solar subtotal, no inferred cross-device routes, neutral source ring, desktop/tablet/mobile layout, no page errors.
+- Installed and uploaded assets match the build. Native configuration matches the requested mapping correction; existing container IDs/start times and MQTT/JavaScript/InfluxDB health flags are unchanged. Startup logs show the authenticated listener with no subsequent adapter errors.
+- [Release workflow](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43844510719) passed; all 77 published files match the tested build after line-ending normalization. [Full CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43844504040) and [isolated installation](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43844504048) were still running at the time of this deployment verification.
+- This change verifies the live power mapping. Historical meter-counter meanings and missing storage-power measurements are not newly certified by this update.
 
 ## Previous alpha.5 verification
 
