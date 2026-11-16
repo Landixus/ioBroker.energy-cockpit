@@ -2,7 +2,7 @@
 
 ## Alpha.5 visual direction override
 
-The change is limited to `rest.reverse_flow`. No sensor-role or calculation change is included. Local validation: 18 unit/API tests and 28 UI regression scenarios passed, including reversal of the selected connection without changing its value or other consumer directions. Deployment verification is pending.
+The change is limited to `rest.reverse_flow`. No sensor-role or calculation change is included. Local validation: 18 unit/API tests and 28 UI regression scenarios passed, including reversal of the selected connection without changing its value or other consumer directions. Production alpha.5 is installed. Browser inspection verified that the selected animated path and arrow point toward the house, with no page errors. Sensor mappings are unchanged; only the visual override was enabled. Installed assets and unchanged existing container IDs/start times were checked. Full CI for this commit was still running when this deployment check completed.
 
 ## Previous alpha.4 verification
 
