@@ -4,7 +4,9 @@
 
 - 18 unit/API tests, seven standalone browser groups, 70 UI regression scenarios, ESLint and TypeScript passed locally.
 - New browser checks exercise both visibility switches in classic and 3D previews, restore each display, and verify unchanged household calculations/source shares and a retained house graphic.
-- A fresh controller backup was validated before installation. Production UI-save verification and release checks are pending at this commit.
+- Alpha.9 is installed after a fresh validated controller backup. Both displays were disabled through the authenticated appearance UI and saved using its normal button. Reload and native-object inspection confirm persistence; only the two display flags changed in the normalized dashboard settings. Other native settings are unchanged.
+- Live checks passed at 1600, 768 and 390 px: household text and the remainder tile/connection are hidden, while the house, battery and source shares remain visible. The unchecked controls reload correctly, no horizontal overflow occurs, and no page errors were observed. Installed/uploaded assets and existing container/service checks passed.
+- [Release workflow](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43857517869) passed. The published checksum and all 77 package files match the local build after line-ending normalization. [Full CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43857513630) and [isolated installation](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43857513668) are still running at this verification checkpoint.
 - Private screenshot `sc3.png` is excluded from source control. Pattern and exact private-value scans passed for source and the package.
 
 ## Alpha.8 charger layout
@@ -14,7 +16,7 @@
 - Alpha.8 is installed after a fresh validated backup. Authenticated production browser checks passed for the single BMS-equipped battery, measured zero inverter contribution, complete source shares, household/remainder calculations, grid import/export sign handling and charger/inverter routes. Tablet/mobile checks also verified charger path endpoints and non-overlapping text; no page errors occurred.
 - Installed and uploaded assets match the build; native settings are unchanged from the confirmed alpha.7 merge. Existing container IDs/start times are unchanged. MQTT, JavaScript and InfluxDB status checks passed; Grafana and InfluxDB HTTP health endpoints returned 200. Current adapter startup contains no subsequent warning/error entries.
 - [Release packaging](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848296395) passed, including Linux browser tests. The published checksum was verified and all 77 package files match the tested build after line-ending normalization. The first release attempt had an npm download connection reset before build/test execution; the retry passed.
-- [Full CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291157) and [isolated installation](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291180) are still running at this documentation checkpoint; they are not counted as passed for alpha.8.
+- [Full CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291157) and [isolated installation](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291180) subsequently completed successfully for alpha.8.
 
 ## Alpha.7 external battery channels and grid cable
 
