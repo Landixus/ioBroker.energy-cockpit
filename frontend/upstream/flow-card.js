@@ -80,6 +80,8 @@ svg.links{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible
 .flow{fill:none;stroke:rgb(var(--c));stroke-width:4.5;stroke-linecap:round;stroke-dasharray:0 18;opacity:0;transition:opacity .6s;animation:dash var(--d,1s) linear infinite}
 .link.on .flow{opacity:1}.link.on .glow{opacity:0}.link.on .track{stroke:rgba(var(--c),.28)}
 .link.rev .flow{animation-direction:reverse}
+.direction{fill:rgb(var(--c));stroke:var(--panel);stroke-width:1;opacity:0;pointer-events:none}
+.link.on .direction{opacity:1}
 @keyframes dash{from{stroke-dashoffset:0}to{stroke-dashoffset:-18}}
 .layout{position:relative;z-index:1;display:grid;grid-template-columns:1fr minmax(170px,1.15fr) 1fr;grid-template-areas:"pv hub bat" "grid hub bat";grid-gap:24px 34px;gap:24px 34px;align-items:center}
 .node{position:relative;padding:15px 16px;border-radius:22px;background:linear-gradient(160deg,rgba(var(--ov),.065),rgba(var(--ov),.015)),var(--panel);border:1px solid var(--stroke);cursor:pointer;transition:border-color .5s,box-shadow .5s,transform .25s,opacity .5s;min-width:0}
@@ -981,6 +983,13 @@ class EnergyCockpitFlowCard extends HTMLElement {
     </div></ha-card>${cmp ? '<dialog class="gdlg"></dialog>' : ''}${c.why ? '<dialog class="wdlg"></dialog>' : ''}`;
 
     this._links = links.map((k) => ({ k, g: this._$(`g[data-l="${k}"]`), el: this._$(`[data-k="${k}"]`) }));
+    this._links.forEach(L => {
+      L.arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      L.arrow.setAttribute('class', 'direction');
+      L.arrow.setAttribute('points', '-6,-4 5,0 -6,4');
+      L.arrow.setAttribute('aria-hidden', 'true');
+      L.g.appendChild(L.arrow);
+    });
     this._3k = {};
     this._dlg = null;
     const dl = this._$('.gdlg');
@@ -1192,6 +1201,23 @@ class EnergyCockpitFlowCard extends HTMLElement {
       const d = `M${ax.toFixed(1)},${ay.toFixed(1)} C${(ax + tx * k).toFixed(1)},${(ay + ty * k).toFixed(1)} ${(bx + Math.cos(ang) * k).toFixed(1)},${(by + Math.sin(ang) * k).toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
       L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', d));
     }
+    this._links.forEach(L => this._direction(L));
+  }
+
+  // The SVG paths run from the peripheral device to the house, or from route source to target.
+  // A persistent arrow makes direction unambiguous even when dotted motion aliases at low frame rates.
+  _direction(L) {
+    const path = L.g.querySelector('.flow'), d = path?.getAttribute('d');
+    if (!L.arrow || !d) { L.arrowKey = null; if (L.arrow) L.arrow.style.display = 'none'; return; }
+    const key = `${d}|${L.forward}`;
+    if (L.arrowKey === key) return;
+    L.arrowKey = key;
+    const length = path.getTotalLength(), at = length * 0.56;
+    const a = path.getPointAtLength(Math.max(0, at - 1)), b = path.getPointAtLength(Math.min(length, at + 1));
+    const point = path.getPointAtLength(at);
+    const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI + (L.forward ? 0 : 180);
+    L.arrow.style.display = length > 12 ? '' : 'none';
+    L.arrow.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${angle})`);
   }
 
   _anim(key, target, root) {
@@ -1237,8 +1263,10 @@ class EnergyCockpitFlowCard extends HTMLElement {
     if (!L) return;
     L.g.classList.toggle('on', !!active);
     L.g.classList.toggle('rev', !forward);
+    L.forward = !!forward;
+    this._direction(L);
     L.g.style.setProperty('--c', color);
-    const speed = 22 + 120 * Math.min(1, Math.sqrt(Math.abs(power || 0) / 8000));
+    const speed = 18 + 54 * Math.min(1, Math.sqrt(Math.abs(power || 0) / 8000));
     const dur = (18 / speed).toFixed(2) + 's';
     if (L.dur !== dur) { L.dur = dur; L.g.style.setProperty('--d', dur); }
   }

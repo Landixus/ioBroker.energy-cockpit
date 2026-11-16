@@ -1,4 +1,14 @@
-# Verification report — 0.1.0-alpha.3
+# Verification report - 0.1.0-alpha.4
+
+## Alpha.4 UI regression checks
+
+- 18 unit/API tests, ESLint and TypeScript passed locally.
+- Six existing dashboard browser groups passed without page errors.
+- 27 additional browser cases passed: seven Admin themes (text contrast at least 4.5:1 and checkbox interaction), plus 20 desktop/mobile 3D/classic cases for grid import, export, high power, zero and unavailable readings. Local Admin rendering also used the installed Admin 8.2.0 stylesheets; copies remain private.
+- Existing upstream `flow-3d.html` and `flow-anim.html` assertion suites passed.
+- Production deployment and CI verification for this update are pending.
+
+## Previous alpha.3 baseline
 
 Executed on 2026-11-16. This is a functioning installed integration candidate, not completion of every production acceptance requirement.
 

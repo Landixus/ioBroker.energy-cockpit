@@ -149,7 +149,8 @@ function meter(grid,pre,large,text,label){
   // Hausanschluss: Kabel im Boden, die Punkte zeigen die Richtung
   const out=P(W/2,D+CABLE,0),inn=P(W/2,D+1,0);
   body+=`<line x1="${out[0].toFixed(1)}" y1="${out[1].toFixed(1)}" x2="${inn[0].toFixed(1)}" y2="${inn[1].toFixed(1)}" style="stroke:var(--slot);stroke-width:6;stroke-linecap:round"/>`;
-  if(run){const a=imp?out:inn,b=imp?inn:out;body+=`<line class="d3-fl" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="rgb(${col})" style="animation-duration:${speed}"/>`;}
+  // Import leaves the meter toward the house connection; export returns into the meter.
+  if(run){const a=imp?inn:out,b=imp?out:inn;body+=`<line class="d3-fl" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="rgb(${col})" style="animation-duration:${speed}"/>`;}
   // Sockel
   body+=poly([[-3,D+3,0],[W+3,D+3,0],[W+3,D+3,BASE],[-3,D+3,BASE]],'fill:var(--hr0)');
   body+=poly([[W+3,D+3,0],[W+3,-3,0],[W+3,-3,BASE],[W+3,D+3,BASE]],'fill:var(--hr1)');

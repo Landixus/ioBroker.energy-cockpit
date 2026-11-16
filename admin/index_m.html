@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../css/adapter.css" />
     <link rel="stylesheet" href="../../lib/css/materialize.css" />
+    <link rel="stylesheet" href="style.css" />
     <script src="../../lib/js/jquery-3.2.1.min.js"></script>
     <script src="../../lib/js/materialize.js"></script>
     <script>
@@ -44,7 +45,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="m adapter-container energy-cockpit-admin">
     <h1>ioBroker Energy-Cockpit</h1>
     <p>
       Der grafische Einrichtungsassistent mit Live-Vorschau ist im Dashboard
@@ -79,6 +80,20 @@
     <p id="error" role="alert"></p>
     <script>
       let current = {};
+      const adminTheme = new URLSearchParams(location.search).get("react");
+      const darkThemes = ["dark", "blue", "modernDark", "NW", "HA"];
+      const mediaTheme = matchMedia("(prefers-color-scheme: dark)");
+      function applyTheme() {
+        document.body.dataset.cockpitTheme = adminTheme
+          ? darkThemes.includes(adminTheme)
+            ? "dark"
+            : "light"
+          : mediaTheme.matches
+            ? "dark"
+            : "light";
+      }
+      applyTheme();
+      mediaTheme.addEventListener("change", applyTheme);
       function link() {
         document.getElementById("dashboard").href =
           (document.getElementById("secure").checked ? "https" : "http") +

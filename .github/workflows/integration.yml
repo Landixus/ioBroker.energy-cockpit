@@ -29,7 +29,7 @@ jobs:
             if docker exec ec-ci iobroker object get system.adapter.admin.0 >/dev/null 2>&1; then break; fi
             sleep 2
           done
-          docker cp iobroker.energy-cockpit-0.1.0-alpha.3.tgz ec-ci:/tmp/cockpit.tgz
+          docker cp iobroker.energy-cockpit-0.1.0-alpha.4.tgz ec-ci:/tmp/cockpit.tgz
           docker cp test/integration/lifecycle.cjs ec-ci:/tmp/lifecycle.cjs
           docker exec ec-ci iobroker url /tmp/cockpit.tgz energy-cockpit
           docker exec ec-ci iobroker add energy-cockpit

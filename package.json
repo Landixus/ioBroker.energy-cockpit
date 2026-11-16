@@ -1,6 +1,6 @@
 {
   "name": "iobroker.energy-cockpit",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "ioBroker port of the original Energy-Cockpit dashboard",
   "author": "Landixus",
   "license": "MIT",
@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint lib main.ts frontend/*.js frontend/*.mjs tools/*.mjs test/*.cjs",
     "test": "npm run build && node --test test/*.test.cjs",
-    "test:browser": "node tools/browser-tests.mjs",
+    "test:browser": "node tools/browser-tests.mjs && node tools/ui-regression.mjs",
     "test:upstream": "node tools/upstream-tests.mjs",
     "prepack": "npm run build"
   },

@@ -1,0 +1,87 @@
+/* Scoped to this adapter's configuration iframe; never overrides the Admin shell. */
+body.energy-cockpit-admin.adapter-container {
+  --ec-bg: #f6f8fb;
+  --ec-panel: #ffffff;
+  --ec-text: #172033;
+  --ec-muted: #46546a;
+  --ec-border: #69778d;
+  --ec-accent: #1356b4;
+  --ec-error: #a51c30;
+  background: var(--ec-bg);
+  color: var(--ec-text);
+  color-scheme: light;
+  padding-bottom: 90px;
+}
+body.energy-cockpit-admin.adapter-container[data-cockpit-theme="dark"] {
+  --ec-bg: #171d27;
+  --ec-panel: #242e3e;
+  --ec-text: #edf2fa;
+  --ec-muted: #c2cfdf;
+  --ec-border: #8a9bb3;
+  --ec-accent: #91c4ff;
+  --ec-error: #ffadbb;
+  color-scheme: dark;
+}
+body.energy-cockpit-admin.adapter-container h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 16px 0 24px;
+}
+body.energy-cockpit-admin.adapter-container h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 28px 0 18px;
+}
+/* Admin's legacy Materialize theme uses !important for descendant colors. */
+body.energy-cockpit-admin.adapter-container h1,
+body.energy-cockpit-admin.adapter-container h2,
+body.energy-cockpit-admin.adapter-container p,
+body.energy-cockpit-admin.adapter-container pre {
+  color: var(--ec-text) !important;
+}
+body.energy-cockpit-admin.adapter-container label,
+body.energy-cockpit-admin.adapter-container input::placeholder,
+body.energy-cockpit-admin.adapter-container textarea::placeholder {
+  color: var(--ec-muted) !important;
+  opacity: 1;
+}
+body.energy-cockpit-admin.adapter-container input:not([type="checkbox"]),
+body.energy-cockpit-admin.adapter-container textarea,
+body.energy-cockpit-admin.adapter-container select,
+body.energy-cockpit-admin.adapter-container button {
+  color: var(--ec-text) !important;
+  background: var(--ec-panel) !important;
+  border: 1px solid var(--ec-border);
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+body.energy-cockpit-admin.adapter-container input:not([type="checkbox"]):focus,
+body.energy-cockpit-admin.adapter-container textarea:focus {
+  border-color: var(--ec-accent);
+  box-shadow: 0 0 0 1px var(--ec-accent);
+}
+body.energy-cockpit-admin.adapter-container a {
+  color: var(--ec-accent) !important;
+  text-decoration: underline;
+}
+body.energy-cockpit-admin.adapter-container :focus-visible {
+  outline: 2px solid var(--ec-accent);
+  outline-offset: 3px;
+}
+body.energy-cockpit-admin.adapter-container #error {
+  color: var(--ec-error) !important;
+}
+body.energy-cockpit-admin.adapter-container #settings {
+  height: 320px;
+  padding: 10px;
+  font: 13px monospace;
+}
+body.energy-cockpit-admin.adapter-container input[type="checkbox"] {
+  position: static !important;
+  opacity: 1 !important;
+  width: 18px !important;
+  height: 18px;
+  margin-right: 8px;
+  pointer-events: auto !important;
+  accent-color: var(--ec-accent);
+}

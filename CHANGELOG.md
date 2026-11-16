@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Reverse the 3D grid meter cable on import: energy leaves the meter toward the house. Export returns into the meter.
+- Add persistent direction arrows and reduce maximum dotted-flow speed to make direction easier to read.
+- Apply explicit accessible light/dark colors to the Admin configuration iframe, including legacy Admin theme overrides.
+- Add browser checks for seven Admin themes and import/export/zero/missing grid power at desktop and mobile widths.
+
 ## 0.1.0-alpha.3
 
 - Withhold causal energy explanations when mapped grid, home, generation or battery power is incomplete.
