@@ -1,0 +1,41 @@
+{
+	"adapterName": "energy-cockpit",
+	"title": "Energy Cockpit",
+	"description": "Local energy dashboard ported from Energy-Cockpit",
+	"keywords": [
+		"energy",
+		"solar",
+		"battery"
+	],
+	"expert": "yes",
+	"features": [
+		"adapter"
+	],
+	"adminFeatures": [],
+	"type": "visualization",
+	"startMode": "daemon",
+	"connectionType": "local",
+	"dataSource": "push",
+	"connectionIndicator": "yes",
+	"language": "JavaScript",
+	"authorName": "Landixus",
+	"authorGithub": "Landixus",
+	"authorEmail": "",
+	"license": "MIT License",
+	"adminUi": "json",
+	"tools": [
+		"ESLint"
+	],
+	"gitCommit": "no",
+	"defaultBranch": "main",
+	"devServer": "no",
+	"replay": "D:\\EnergyDashboard\\.private\\creator.json",
+	"nodeVersion": "20",
+	"eslintConfig": "official",
+	"releaseScript": "yes",
+	"indentation": "Tab",
+	"quotes": "single",
+	"gitRemoteProtocol": "HTTPS",
+	"dependabot": "yes",
+	"creatorVersion": "3.1.5"
+}

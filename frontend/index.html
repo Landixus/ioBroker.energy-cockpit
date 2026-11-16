@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ioBroker Energy-Cockpit</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="shell">
+      <a class="brand" href="#flow"
+        >⚡ Energy-Cockpit <small>ioBroker</small></a
+      >
+      <nav aria-label="Hauptnavigation">
+        <a href="#flow">Energiefluss</a><a href="#devices">Geräte</a
+        ><a href="#stats">Statistik</a><a href="#room">Räume</a
+        ><a href="#setup">Einrichtung</a><a href="#diagnostics">Diagnose</a>
+      </nav>
+      <button id="theme">Hell / Dunkel</button
+      ><button id="fullscreen">Vollbild</button><button id="demo">Demo</button
+      ><button id="logout">Abmelden</button>
+    </header>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <main id="main"></main>
+    <dialog id="login">
+      <form id="login-form">
+        <h1>Willkommen im Energy-Cockpit</h1>
+        <p>
+          Anmeldung mit ioBroker-Administrator oder dem eingerichteten
+          Cockpit-Zugang.
+        </p>
+        <label
+          >Benutzer<input
+            name="username"
+            autocomplete="username"
+            value="admin"
+            required /></label
+        ><label
+          >Passwort<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <p id="login-error" role="alert"></p>
+        <button>Anmelden</button
+        ><button type="button" id="login-demo">Demo ansehen</button>
+      </form>
+    </dialog>
+    <dialog id="detail">
+      <button id="detail-close">Schließen</button>
+      <div id="detail-content"></div>
+    </dialog>
+    <footer>
+      Energy-Cockpit von Musicmaker3112 · MIT · ioBroker-Portierung ·
+      Berichtszeitzone Europe/Berlin
+    </footer>
+    <script src="icons.js"></script>
+    <script src="energy-cockpit.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

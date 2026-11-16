@@ -1,0 +1,30 @@
+name: Package prerelease
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test && npm run lint && npm run typecheck
+      - run: node tools/secret-scan.mjs && npm audit --omit=dev
+      - run: npx playwright install --with-deps chromium && npm run test:browser
+      - run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adapter-package
+          path: '*.tgz'
+      - if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" *.tgz --prerelease --title "$RELEASE_TAG" --notes-file CHANGELOG.md

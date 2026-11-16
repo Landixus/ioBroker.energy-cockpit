@@ -1,0 +1,145 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>energy-cockpit 3D-Ansicht Test</title>
+<style>html,body{margin:0;background:#05070d;color:#e8eefc;font-family:system-ui}#host{max-width:1200px;margin:0 auto;padding:8px}#res{white-space:pre-wrap;font:12px monospace;padding:8px}</style></head>
+<body><div id="host"></div><div id="res"></div>
+<script src="_icons.js"></script><script src="../dist/energy-cockpit.js"></script><script src="_theme.js"></script>
+<script>
+/* Prüft style: 3d. Aufruf: ?test=1&still=1, ohne test zeigt die Seite die Karte (?case=normal|strings|stapel|via|zwei|flach, &w=Breite, &kurz=1, &theme=hell) */
+const S=(v,u)=>({state:String(v),attributes:{unit_of_measurement:u||'W'},last_updated:'x'});
+const hassFor=(o)=>({states:Object.assign({'sensor.pv':S(1240),'sensor.grid':S(354),'sensor.bat':S(620),'sensor.bat2':S(-150),'sensor.soc':S(64,'%'),'sensor.soc2':S(22,'%'),'sensor.ch':S(96),'sensor.dis':S(0),'sensor.out':S(0),'sensor.s0':S(4,'%'),'sensor.s1':S(22,'%'),'sensor.s1w':S(400),'sensor.s2w':S(467),'sensor.s3w':S(213),'sensor.s4w':S(160),'sensor.wp':S(600),'sensor.pv2':S(300)},o||{}),language:'de',locale:{language:'de'},config:{currency:'EUR'},callApi:async()=>[],callWS:async()=>({})});
+const base={pv:{entity:'sensor.pv'},grid:{entity:'sensor.grid'},battery:{power:'sensor.bat',soc:'sensor.soc',capacity_kwh:10},style:'3d'};
+const HAUS={"sensor.pv": 2100, "sensor.grid": 380, "sensor.bat": -640, "sensor.soc": 64, "sensor.h0_0": 42, "sensor.h0_1": 118, "sensor.h1_0": 86, "sensor.h1_1": 640, "sensor.h1_2": 24, "sensor.h2_0": 186, "sensor.h2_1": 54, "sensor.h2_2": 6, "sensor.h3_0": 820, "sensor.h3_1": 38, "sensor.h3_2": 32, "sensor.h4_0": 420, "sensor.h4_1": 0, "sensor.h5_0": 340, "sensor.h6_0": 32, "sensor.h6_1": 18, "sensor.h6_2": 264};
+const cases={
+  haus:{...base,hide_rest:true,consumer_groups:[{"name": "Wohnen", "icon": "mdi:sofa-outline", "color": "#818cf8", "items": [{"name": "Licht", "entity": "sensor.h0_0"}, {"name": "TV & Soundbar", "entity": "sensor.h0_1"}]}, {"name": "Küche", "icon": "mdi:silverware-fork-knife", "color": "#7dd3fc", "items": [{"name": "Kühlschrank", "entity": "sensor.h1_0"}, {"name": "Geschirrspüler", "entity": "sensor.h1_1"}, {"name": "Licht", "entity": "sensor.h1_2"}]}, {"name": "Büro", "icon": "mdi:desktop-tower-monitor", "color": "#f59e0b", "items": [{"name": "PC", "entity": "sensor.h2_0"}, {"name": "Monitore", "entity": "sensor.h2_1"}, {"name": "Drucker", "entity": "sensor.h2_2"}]}, {"name": "Technik", "icon": "mdi:pipe-valve", "color": "#f87171", "items": [{"name": "Wärmepumpe", "entity": "sensor.h3_0"}, {"name": "Umwälzpumpe", "entity": "sensor.h3_1"}, {"name": "Netzwerk", "entity": "sensor.h3_2"}]}, {"name": "Keller", "icon": "mdi:washing-machine", "color": "#fb923c", "items": [{"name": "Waschen", "entity": "sensor.h4_0"}, {"name": "Trockner", "entity": "sensor.h4_1"}]}, {"name": "Garten", "icon": "mdi:pool", "color": "#34d399", "items": [{"name": "Poolpumpe", "entity": "sensor.h5_0"}]}, {"name": "Bad", "icon": "mdi:shower", "color": "#22d3ee", "items": [{"name": "Lüftung", "entity": "sensor.h6_0"}, {"name": "Licht", "entity": "sensor.h6_1"}, {"name": "Handtuch", "entity": "sensor.h6_2"}]}]},
+  normal:base,
+  strings:{...base,pv:{entity:'sensor.pv',strings:[{entity:'sensor.s1w',name:'S1'},{entity:'sensor.s2w',name:'S2'},{entity:'sensor.s3w',name:'S3'},{entity:'sensor.s4w',name:'S4'}]}},
+  flach:{...base,house_style:'flach'},
+  zwei:{...base,pv2:{entity:'sensor.pv2',name:'BKW'},batteries:[{name:'Zweiter',power:'sensor.bat2',soc:'sensor.soc2',capacity_kwh:5}],consumers:[{name:'WP',entity:'sensor.wp'}]},
+  stapel:{...base,battery:{name:'Nexa',power_charge:'sensor.ch',power_discharge:'sensor.dis',soc:'sensor.s0',capacity_kwh:2},batteries:[{name:'Noah',power_charge:'sensor.ch',power_discharge:'sensor.dis',soc:'sensor.s1',capacity_kwh:2}]},
+  via:{...base,pv_to_battery:'direkt',battery:{name:'B2500',power_out:'sensor.out',soc:'sensor.soc',capacity_kwh:2}},
+  voll:{...base,pv:{entity:'sensor.pv',strings:[{entity:'sensor.s1w',name:'S1'},{entity:'sensor.s2w',name:'S2'}]},consumer_groups:Array.from({length:11},(_,i)=>({name:'Gruppe '+(i+1),items:[{name:'Licht',entity:'sensor.wp'},{name:'Steckdose',entity:'sensor.pv2'}]}))},
+  gruppen:{...base,consumer_groups:[{name:'Küche',items:[{name:'Herd',entity:'sensor.wp'}]},{name:'Büro',items:[{name:'PC',entity:'sensor.pv2'}]}],consumers:[{name:'WP',entity:'sensor.wp'}]},
+};
+function mount(c,h){const host=document.getElementById('host');host.innerHTML='';const e=document.createElement('energy-cockpit-flow-card');e.setConfig(JSON.parse(JSON.stringify(c)));host.appendChild(e);e.hass=h;return e;}
+const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
+const q=(e,s)=>e.shadowRoot.querySelector(s),qa=(e,s)=>[...e.shadowRoot.querySelectorAll(s)];
+const lines=[];let fail=0;
+const ok=(n,v,x)=>{if(!v)fail++;lines.push((v?'OK   ':'FAIL ')+n+(x!==undefined?' -> '+x:''));};
+async function run(){
+  const {style,...off}=base;
+  let e=mount(off,hassFor());await wait(600);
+  ok('ohne Option: keine 3D-Klasse und keine Objekte',!q(e,'.s3d')&&!q(e,'.o3d'));
+  e=mount(base,hassFor());await wait(600);
+  ok('mit Option: vier Objekte',qa(e,'.o3d svg').length===4,qa(e,'.o3d svg').length);
+  ok('Hausverbrauch als Zahl',!!q(e,'.core .num')&&q(e,'.core .num').textContent!=='—',q(e,'.core .num').textContent);
+  ok('Akku: Prozentzahl auf der Front',/64 %/.test(q(e,'[data-o="bat"] svg').textContent),q(e,'[data-o="bat"] svg').textContent);
+  ok('Netz: Wert auf dem Display',/354 W/.test(q(e,'[data-o="grid"] svg').textContent),q(e,'[data-o="grid"] svg').textContent);
+  ok('Kacheln behalten ihre Werte',q(e,'[data-k="bat"] .num').textContent!=='—'&&q(e,'[data-k="pv"] .num').textContent!=='—');
+  const first=q(e,'[data-o="bat"] svg');
+  e.hass=hassFor();await wait(100);
+  ok('gleiche Werte: Objekt wird nicht neu gezeichnet',q(e,'[data-o="bat"] svg')===first);
+  const band=q(e,'[data-o="bat"] .d3-band');
+  e.hass=hassFor({'sensor.soc':S(70,'%')});await wait(100);
+  ok('neuer Ladestand: Objekt folgt',/70 %/.test(q(e,'[data-o="bat"] svg').textContent));
+  ok('neuer Ladestand: SVG und Animation bleiben erhalten',q(e,'[data-o="bat"] svg')===first&&q(e,'[data-o="bat"] .d3-band')===band);
+  e.hass=hassFor({'sensor.soc':S(70,'%'),'sensor.bat':S(1200)});await wait(100);
+  ok('neue Leistung: Animation bleibt erhalten',q(e,'[data-o="bat"] .d3-band')===band);
+  e.hass=hassFor({'sensor.soc':S(70,'%'),'sensor.bat':S(-900)});await wait(100);
+  ok('Richtungswechsel: Bänder laufen rückwärts',!!q(e,'[data-o="bat"] .d3-band.rev'));
+  e=mount(cases.strings,hassFor());await wait(600);
+  ok('Strings: je String ein beschriftetes Modul',/400 W/.test(q(e,'[data-o="pv"] svg').textContent)&&/160 W/.test(q(e,'[data-o="pv"] svg').textContent),q(e,'[data-o="pv"] svg').textContent);
+  e=mount(cases.stapel,hassFor());await wait(600);
+  ok('gemeinsamer Sensor: Turm mit beiden Ladeständen',/4 %/.test(q(e,'[data-o="bat"] svg').textContent)&&/22 %/.test(q(e,'[data-o="bat"] svg').textContent),q(e,'[data-o="bat"] svg').textContent);
+  {const tx=qa(e,'[data-o="bat"] svg text'),y=(re)=>{const t=tx.find((n)=>re.test(n.textContent));return t?t.getBoundingClientRect().top:null;},y1=y(/^4 %$/),y2=y(/^22 %$/);ok('Turm: erster Akku (4 %) steht oben, wie in der Zeile Ladestand',y1!==null&&y2!==null&&y1<y2,y1+' < '+y2);}
+  ok('gemeinsamer Sensor: zweite Kachel ausgeblendet',q(e,'[data-k="bat2"]').style.display==='none');
+  ok('gemeinsamer Sensor: Leistung einmal',q(e,'[data-k="bat"] .num').textContent==='96',q(e,'[data-k="bat"] .num').textContent);
+  ok('gemeinsamer Sensor: Name und Ladestände in der Kachel',q(e,'[data-k="bat"] .lbl').textContent==='Nexa · Noah'&&q(e,'[data-k="bat"] .soc-txt').textContent==='4 % / 22 %',q(e,'[data-k="bat"] .soc-txt').textContent);
+  const tt={'sensor.t0':S(24.56,'°C'),'sensor.t1':S(31,'°C')},st=cases.stapel;
+  e=mount({...st,battery:{...st.battery,temp:'sensor.t0'},batteries:[{...st.batteries[0],temp:'sensor.t1'}]},hassFor(tt));await wait(600);
+  ok('Turm: beide Temperaturen in der Kachel',q(e,'[data-k="bat"] .temp-txt').textContent==='24,6 °C / 31,0 °C',q(e,'[data-k="bat"] .temp-txt').textContent);
+  ok('Turm: Tipp öffnet den ersten Sensor',q(e,'[data-k="bat"] .temp-txt').closest('[data-e]').dataset.e==='sensor.t0');
+  e.hass=hassFor({...tt,'sensor.t1':S(33,'°C')});await wait(100);
+  ok('Turm: neuer Wert erscheint und Zeile bleibt einzeln',q(e,'[data-k="bat"] .temp-txt').textContent==='24,6 °C / 33,0 °C'&&qa(e,'[data-k="bat"] .temp-txt').length===1,q(e,'[data-k="bat"] .temp-txt').textContent);
+  e=mount({...st,batteries:[{...st.batteries[0],temp:'sensor.t1'}]},hassFor(tt));await wait(600);
+  ok('Turm: nur der zweite Akku hat einen Sensor',q(e,'[data-k="bat"] .temp-txt').textContent==='— / 31,0 °C'&&q(e,'[data-k="bat"] .temp-txt').closest('[data-e]').dataset.e==='sensor.t1',q(e,'[data-k="bat"] .temp-txt').textContent);
+  e=mount(st,hassFor(tt));await wait(600);
+  ok('Turm ohne temp: keine Zeile',!q(e,'.temp-txt'));
+  e=mount(cases.zwei,hassFor());await wait(600);
+  ok('zwei Anlagen, zwei Speicher: alle Objekte',qa(e,'.o3d svg').length===6,qa(e,'.o3d svg').length);
+  e=mount(cases.via,hassFor());await wait(600);
+  ok('pv_to_battery: Objekte vorhanden',qa(e,'.o3d svg').length===4);
+  e=mount(cases.flach,hassFor());await wait(600);
+  ok('Flachdach gewählt',/--terrace/.test(q(e,'[data-o="home"] svg').innerHTML));
+  e=mount(base,hassFor());await wait(600);
+  ok('Satteldach ist Standard',!/--terrace/.test(q(e,'[data-o="home"] svg').innerHTML));
+  // Echte Wege
+  const on=(e,k)=>{const g=q(e,`g[data-l="${k}"]`);return !!g&&g.classList.contains('on');};
+  const hasD=(e,k)=>{const p=q(e,`g[data-l="${k}"] path`);return !!p&&!!p.getAttribute('d');};
+  e=mount(base,hassFor());await wait(800);
+  ok('Solar lädt: Linie Solar zum Speicher',on(e,'r:pv:bat')&&hasD(e,'r:pv:bat'),q(e,'g[data-l="r:pv:bat"] path').getAttribute('d'));
+  ok('Solar lädt: keine Linie Haus zum Speicher',!on(e,'bat'));
+  ok('Solar lädt: Solar und Netz versorgen das Haus',on(e,'pv')&&on(e,'grid'));
+  ok('Solar lädt: keine Einspeise-Linie',!on(e,'r:pv:grid')&&!on(e,'r:grid:bat'));
+  e=mount(base,hassFor({'sensor.pv':S(2000),'sensor.grid':S(-500),'sensor.bat':S(500)}));await wait(800);
+  ok('Einspeisung: Linie Solar zum Netz',on(e,'r:pv:grid')&&hasD(e,'r:pv:grid'));
+  ok('Einspeisung: keine Linie Haus zum Netz',!on(e,'grid'));
+  e=mount(base,hassFor({'sensor.pv':S(0),'sensor.grid':S(1500),'sensor.bat':S(1000)}));await wait(800);
+  ok('Netz lädt: Linie Netz zum Speicher',on(e,'r:grid:bat'));
+  ok('Netz lädt: Netz versorgt auch das Haus',on(e,'grid')&&!on(e,'pv')&&!on(e,'r:pv:bat'));
+  e=mount(base,hassFor({'sensor.pv':S(0),'sensor.grid':S(0),'sensor.bat':S(-800)}));await wait(800);
+  ok('Entladen: Linie Speicher zum Haus',on(e,'bat')&&!on(e,'r:bat:grid')&&!on(e,'grid'));
+  e=mount(base,hassFor({'sensor.pv':S(0),'sensor.grid':S(-300),'sensor.bat':S(-800)}));await wait(800);
+  ok('Speicher speist ein: Linie Speicher zum Netz',on(e,'r:bat:grid')&&on(e,'bat'));
+  e=mount({...base,batteries:[{name:'Zendure',power:'sensor.bat2',soc:'sensor.soc2',capacity_kwh:2,behind_meter:true}]},hassFor({'sensor.bat2':S(96)}));await wait(800);
+  ok('hinter dem Zähler: keine direkte Linie, Haus lädt',!q(e,'g[data-l="r:pv:bat2"]')&&on(e,'bat2'));
+  e=mount(off,hassFor());await wait(600);
+  ok('ohne Option: keine neuen Linien',!q(e,'g[data-l^="r:"]'));
+  // Linien zu den Verbrauchern laufen nicht hinter den Kacheln neben dem Haus
+  const host=document.getElementById('host');host.style.maxWidth='none';host.style.width='1650px';
+  e=mount(cases.voll,hassFor({'sensor.pv':S(6000),'sensor.grid':S(-4600),'sensor.bat':S(0)}));await wait(800);
+  const sg=q(e,'.stage').getBoundingClientRect(),k=sg.width/q(e,'.stage').offsetWidth;
+  const box=(s)=>{const r=q(e,s).getBoundingClientRect();return{l:(r.left-sg.left)/k,r:(r.right-sg.left)/k,t:(r.top-sg.top)/k,b:(r.bottom-sg.top)/k};};
+  const walls=['[data-k="pv"]','[data-k="grid"]','[data-k="bat"]'].map(box);
+  const gl=qa(e,'g.link').filter(g=>!/^(r:|pv|grid|bat)/.test(g.dataset.l)).map(g=>g.querySelector('path')).filter(p=>p.getAttribute('d'));
+  let hits=0;gl.forEach(p=>{const n=p.getTotalLength();for(let i=0;i<=80;i++){const a=p.getPointAtLength(n*i/80);if(walls.some(w=>a.x>w.l&&a.x<w.r&&a.y>w.t&&a.y<w.b)){hits++;break;}}});
+  ok('Verbraucher-Linien: vorhanden',gl.length>=11,gl.length);
+  ok('Verbraucher-Linien: keine läuft hinter einer Kachel',hits===0,hits+' von '+gl.length);
+  ok('Einspeise-Linie: sichtbar lang',q(e,'g[data-l="r:pv:grid"] path').getTotalLength()>=60,Math.round(q(e,'g[data-l="r:pv:grid"] path').getTotalLength()));
+  host.style.width='';host.style.maxWidth='';
+  // Text bleibt in der Kachel, bei jeder Breite, auch mit Kurzansicht
+  const fits=(n)=>{const b=n.getBoundingClientRect();return [...n.querySelectorAll('.lbl,.val,.num,.unit,.tag,.soc-row')].filter(x=>x.offsetParent).every(x=>{const r=x.getBoundingClientRect();return x.scrollWidth<=x.clientWidth+1&&r.right<=b.right+0.5&&r.left>=b.left-0.5&&(!x.classList.contains('soc-row')||r.height<28);});};
+  for(const[w,kurz] of [[320,1],[360,1],[393,1],[430,1],[600,1],[768,1],[1100,1],[320,0],[393,0],[600,0],[768,0],[820,0],[899,0],[900,0],[1024,0],[1100,0],[1280,0],[1600,0]]){
+    host.style.maxWidth='none';host.style.width=w+'px';
+    e=mount({...cases.zwei,fit_screen:false,compact:kurz?'immer':false},hassFor());await wait(500);
+    const bad=qa(e,'.node[data-k]').filter(n=>n.offsetParent&&!fits(n)).map(n=>n.dataset.k);
+    ok(`Text passt: ${w} px${kurz?' Kurzansicht':''}`,!bad.length,bad.join(',')+' Kachel '+q(e,'[data-k="pv"]').offsetWidth);
+  }
+  for(const[w,kurz,ts] of [[360,1,'gross'],[393,1,'sehr_gross'],[768,0,'gross'],[768,0,'sehr_gross'],[1024,0,'sehr_gross'],[1280,0,'sehr_gross'],[1600,0,'sehr_gross']]){
+    host.style.maxWidth='none';host.style.width=w+'px';
+    e=mount({...base,fit_screen:false,compact:kurz?'immer':false,text_size:ts},hassFor({'sensor.pv':S(12340),'sensor.grid':S(-8765),'sensor.bat':S(-9999)}));await wait(500);
+    const bad=qa(e,'.node[data-k]').filter(n=>n.offsetParent&&!fits(n)).map(n=>n.dataset.k);
+    ok(`Große Werte und Schrift ${ts}: ${w} px${kurz?' Kurzansicht':''}`,!bad.length,bad.join(',')+' Kachel '+q(e,'[data-k="pv"]').offsetWidth);
+  }
+  host.style.width='1600px';e=mount(base,hassFor());await wait(500);
+  ok('große Kachel: Bild bleibt neben dem Text',!q(e,'[data-k="pv"]').classList.contains('d3tall'));
+  e.hass=hassFor({'sensor.pv':S(9000)});await wait(300);
+  ok('Klasse bleibt nach neuen Werten',!q(e,'[data-k="pv"]').classList.contains('d3tall'));
+  host.style.width='768px';e._layout();await wait(100);
+  ok('schmaler gezogen: Bild über dem Text',q(e,'[data-k="pv"]').classList.contains('d3tall'));
+  host.style.width='';host.style.maxWidth='';
+  // Namen aus der Konfiguration: Anführungszeichen und Markup dürfen die Zeichnung nicht brechen
+  const bad='A"B<img src=x onerror="window.__x3d=1">';
+  e=mount({...base,home:{name:bad},pv:{entity:'sensor.pv',name:bad},grid:{entity:'sensor.grid',name:bad},battery:{...base.battery,name:bad},pv2:{entity:'sensor.pv2',name:bad},batteries:[{name:bad,power:'sensor.bat2',soc:'sensor.soc2',capacity_kwh:5}]},hassFor());await wait(800);
+  const svgs=qa(e,'.o3d svg');
+  ok('Name mit Sonderzeichen: alle Zeichnungen da',svgs.length===6,svgs.length);
+  ok('Name mit Sonderzeichen: steht unverändert im aria-label',svgs.every(s=>s.getAttribute('aria-label')===bad),svgs.filter(s=>s.getAttribute('aria-label')!==bad).length+' abweichend');
+  ok('Name mit Sonderzeichen: kein Element daraus',!e.shadowRoot.querySelector('.o3d img')&&!window.__x3d);
+  const miss=hassFor();delete miss.states['sensor.soc'];delete miss.states['sensor.grid'];
+  e=mount(base,miss);await wait(600);
+  ok('fehlende Sensoren: kein Absturz',qa(e,'.o3d svg').length===4&&/—/.test(q(e,'[data-o="bat"] svg').textContent));
+  document.getElementById('res').textContent=`${fail?'FEHLER '+fail:'ALLE OK'}\n`+lines.join('\n');
+}
+const P=new URLSearchParams(location.search);
+if(P.get('test')){document.getElementById('host').style.height='0';run();}
+else{if(P.get('w'))document.getElementById('host').style.maxWidth=P.get('w')+'px';const c={...cases[P.get('case')||'normal']};if(P.get('kurz'))c.compact='immer';if(P.get('roof'))c.roof_color=P.get('roof');const t=P.get('theme');if(t)c.theme=t;if(!P.get('demo'))mount(c,hassFor());else{/* Bilder fuer die Doku: auch die Tageswerte gefuellt */const D=(v)=>S(v,'kWh');c.pv={...c.pv,daily:'sensor.dpv'};c.grid={...c.grid,daily_import:'sensor.dimp',daily_export:'sensor.dexp'};c.battery={...c.battery,daily_charge:'sensor.dchg',daily_discharge:'sensor.ddis'};const hs=P.get('case')==='haus'?Object.fromEntries(Object.entries(HAUS).map(([k,v])=>[k,S(v,k==='sensor.soc'?'%':'W')])):{};if(P.get('klassisch'))delete c.style;if(hs['sensor.pv'])Object.assign(hs,{'sensor.dpv':D(24.6),'sensor.dimp':D(1.2),'sensor.dexp':D(9.8),'sensor.dchg':D(6.1),'sensor.ddis':D(4.2)});mount(c,hassFor({'sensor.dpv':D(18.4),'sensor.dimp':D(3.2),'sensor.dexp':D(6.1),'sensor.dchg':D(5),'sensor.ddis':D(3.2),...hs}));}}
+</script></body></html>

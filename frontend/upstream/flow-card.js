@@ -1,0 +1,1870 @@
+/* energy-cockpit-flow-card: animierter Energiefluss. Hilfsfunktionen kommen aus common.js und i18n.js. */
+(() => {
+WD.addStrings({ 'why.q.bal': 'Warum kein Netzbezug?', 'why.q.baldis': 'Warum entlädt die Batterie?', 'why.q.balchg': 'Warum lädt die Batterie?', 'why.bal.both': 'Solar liefert {pv} und die Batterie {bat}. Zusammen decken sie das Haus ({home}).', 'why.bal.sun': 'Solar liefert {pv} und deckt das Haus ({home}) allein.', 'why.bal.bat': 'Die Batterie ({soc} %) liefert {bat} und deckt das Haus ({home}) allein.', 'why.bal.low': 'Das Haus braucht gerade kaum Strom ({home}).', 'why.bal.dis': 'Solar reicht allein nicht für {home}. Die Batterie liefert den Rest ({bat}), Ladestand {soc} %.', 'why.bal.chg': 'Solar liefert mehr, als das Haus braucht. Der Überschuss ({w}) lädt die Batterie.', 'why.imp': 'Warum {w} Netzbezug?', 'why.exp': 'Warum {w} Einspeisung?', 'why.bal': 'Netz ausgeglichen', 'why.asof': 'Stand {t} Uhr', 'why.cover': 'Das Haus braucht {home}. Gedeckt von: {parts}', 'why.solar': 'Solar', 'why.batt': 'Batterie', 'why.grid': 'Netz', 'why.bm': 'Speicher lädt', 'why.row.pv': 'Solar erzeugt', 'why.row.home': 'Haus braucht', 'why.row.chg': 'Batterie lädt', 'why.row.exp': 'Einspeisung', 'why.q.bat': 'Warum nicht aus der Batterie?', 'why.q.sun': 'Warum nicht Solar?', 'why.q.feed': 'Warum nicht in die Batterie?', 'why.q.tip': 'Tipp', 'why.q.hint': 'Hinweis', 'why.bat.empty': 'Die Batterie ist leer ({soc} %, Entladegrenze {res} %).', 'why.bat.idle': 'Die Batterie hat {soc} %, gibt aber gerade keinen Strom ab. Betriebsart oder Sperrzeit im Speicher prüfen.', 'why.bat.dis': 'Die Batterie liefert bereits {w}.', 'why.sun.night': 'Es ist Nacht. Sonnenaufgang um {t} Uhr.', 'why.sun.fc': ' Prognose morgen {kwh} kWh.', 'why.sun.low': 'Solar liefert gerade nur {w}.', 'why.sun.zero': 'Solar liefert gerade nichts.', 'why.sun.wx': ' Wetter: {cnd}.', 'why.sun.part': 'Solar liefert {pv}, das reicht nicht für {home}.', 'why.rest': 'Ein großer Teil ({w}) ist keinem Verbraucher zugeordnet. Trage weitere Verbraucher in die Karte ein.', 'why.full': 'Die Batterie ist voll ({soc} %) und lädt nicht mehr.', 'why.notfull': 'Die Batterie lädt gerade nicht, obwohl noch Platz ist ({soc} %). Betriebsart im Speicher prüfen.', 'why.charging': 'Die Batterie lädt bereits mit {w}.', 'why.tip.sug': '{w} Überschuss: Jetzt passt {names}.', 'why.bal.txt': 'Solar und Batterie decken das Haus ({home}), ohne Netz.', 'why.none': 'Gerade keine Daten für eine Erklärung.', 'why.top': 'davon {n} {w}', 'bat.in2': ' (Solar 2 <b>{pv}</b> · Haus <b>{ac}</b>)', 'xt.alarm': 'Alarm', 'sky.sunny': 'Sonnig', 'sky.clear-night': 'Klare Nacht', 'sky.partlycloudy': 'Teils bewölkt', 'sky.cloudy': 'Bewölkt', 'sky.fog': 'Nebel', 'sky.rainy': 'Regen', 'sky.pouring': 'Starkregen', 'sky.snowy': 'Schnee', 'sky.snowy-rainy': 'Schneeregen', 'sky.lightning': 'Gewitter', 'sky.lightning-rainy': 'Gewitter mit Regen', 'sky.hail': 'Hagel', 'sky.windy': 'Windig', 'sky.windy-variant': 'Windig und bewölkt', 'sky.exceptional': 'Ausnahmewetter', 'sky.cloud': 'Bewölkung', 'sky.wind': 'Wind', 'sky.nofc': 'Keine Vorhersage von der Wetter-Entität', 'ban.tonet0': 'Strom fließt ins Netz', 'stat.home': 'Haus heute', 'close': 'Schließen' });
+const { PAL, TH, rgb, num, watt, kwh, rawUnits, val, clock, nf, splitW, fW, fKwh, fPct, fDur, cur, esc, haNavigate, KA, T, setLocale } = WD;
+// Ab welcher Leistung ein Verbraucher oder eine Gruppe als aktiv gilt (Rahmen, Linie): on_w, sonst 10 W
+const onW = (x) => { const v = parseFloat(x && x.on_w); return isNaN(v) || v < 0 ? TH : v; };
+const CSS = `
+${WD.themeCss()}${WD.D3.css}
+:host{display:block;--pv:${PAL.pv};--imp:${PAL.imp};--exp:${PAL.exp};--bat:${PAL.bat};--home:${PAL.home}}
+ha-card{background:radial-gradient(120% 80% at 50% 0%,var(--bg1) 0%,var(--bg0) 65%);border-radius:28px;overflow:hidden;border:1px solid rgba(var(--ov),.06);color:var(--txt);font-family:Inter,var(--ha-font-family-body,system-ui),sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{padding:22px;position:relative;transform-origin:0 0;box-sizing:border-box}
+.wrap:before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;background:radial-gradient(40% 30% at 18% 18%,rgba(var(--pv),.11),transparent 70%),radial-gradient(40% 35% at 85% 40%,rgba(var(--bat),.09),transparent 70%),radial-gradient(35% 30% at 50% 45%,rgba(var(--home),.10),transparent 70%)}
+header{display:flex;align-items:center;flex-wrap:wrap;margin:0 0 22px;position:relative}
+header>*{margin:3px 0 3px 8px}
+.title{font-size:calc(1.05rem*var(--ts,1));font-weight:650;display:flex;align-items:center;margin:3px auto 3px 0;letter-spacing:.01em}
+.live{width:8px;height:8px;border-radius:50%;background:rgb(var(--exp));margin-right:10px;position:relative}
+.live:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:50%;background:rgb(var(--exp));opacity:0;pointer-events:none;animation:ping 2s infinite}
+@keyframes ping{0%{transform:scale(1);opacity:.7}100%{transform:scale(3.5);opacity:0}}
+.clock{font-variant-numeric:tabular-nums;color:var(--mut);font-weight:500;margin-left:12px;font-size:.95rem}
+.pill{font-size:calc(.74rem*var(--ts,1));color:rgb(var(--mut));padding:6px 11px;border-radius:999px;background:var(--glass);border:1px solid var(--stroke)}
+.pill b{color:var(--txt);font-weight:650;font-variant-numeric:tabular-nums;margin-left:4px}
+.sky{margin:-12px 0 18px;padding:0 2px;cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent}
+.sky[hidden]{display:none}
+.sky-bar{position:relative;display:flex;gap:1px;height:6px}
+.sky-bar i{flex:1;display:block}
+.sky-bar i:first-child{border-radius:4px 0 0 4px}
+.sky-bar i:last-child{border-radius:0 4px 4px 0}
+.sky-now{position:absolute;top:-3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--txt);box-shadow:0 0 0 3px rgba(var(--ov),.18)}
+.sky-row{display:flex;justify-content:space-between;gap:12px;margin-top:7px;font-size:calc(.7rem*var(--ts,1));color:rgb(var(--mut));font-variant-numeric:tabular-nums}
+.sky-det{display:none;margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--glass);border:1px solid var(--stroke);font-size:calc(.74rem*var(--ts,1));color:rgb(var(--mut))}
+.sky.open .sky-det{display:block}
+.sky-det b{color:var(--txt);font-weight:650}
+.sky-det .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 12px;margin-top:8px}
+.sky-det .g>span{display:flex;flex-direction:column;gap:2px}
+.sky-det .g .ht{font-variant-numeric:tabular-nums}
+.cmp .sky-bar{display:none}
+.cmp .sky{margin:-14px 0 12px}
+.ka{display:none}
+.ka.show{display:block}
+.ka.wait{color:#fff;border-color:rgba(var(--pv),.6);background:rgba(var(--pv),.15);position:relative}
+.ka.wait:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;box-shadow:0 0 0 6px rgba(var(--pv),.15);opacity:0;pointer-events:none;animation:kapulse 1.6s ease-in-out infinite}
+.ka.on{color:rgb(var(--exp));border-color:rgba(var(--exp),.35)}
+@keyframes kapulse{50%{opacity:1}}
+.wst{display:none;cursor:pointer;color:var(--txt);border-color:rgba(var(--wc),.55);background:rgba(var(--wc),.14);font-weight:650}
+.wst.show{display:block}
+.wst b{color:rgb(var(--wc));margin-left:0}
+.wst.urgent{position:relative}
+.wst.urgent:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;box-shadow:0 0 0 7px rgba(var(--wc),.18);opacity:0;pointer-events:none;animation:wpulse 1.6s ease-in-out infinite}
+@keyframes wpulse{50%{opacity:1}}
+.navbtn{cursor:pointer;color:var(--txt);font-weight:650;background:rgba(var(--ov),.07);border:1px solid rgba(var(--ov),.14);padding:8px 14px;border-radius:999px;font-size:calc(.8rem*var(--ts,1));margin-left:8px;-webkit-tap-highlight-color:transparent;transition:background .3s}
+.navbtn:active{background:rgba(var(--ov),.18)}
+.banner{position:relative;display:flex;align-items:center;overflow:hidden;border-radius:20px;max-height:0;opacity:0;margin:0;padding:0 18px;border:1px solid transparent;transition:max-height .6s cubic-bezier(.2,.8,.2,1),opacity .5s,margin .6s,padding .6s}
+.banner.show{max-height:140px;opacity:1;margin:0 0 20px;padding:14px 18px}
+.banner.sur{background:linear-gradient(100deg,rgba(var(--pv),.22),rgba(var(--pv),.06) 60%,rgba(var(--exp),.10));border-color:rgba(var(--pv),.6);box-shadow:0 0 0 1px rgba(var(--pv),.35)}
+.banner.imp{background:linear-gradient(100deg,rgba(var(--imp),.2),rgba(var(--imp),.05) 70%);border-color:rgba(var(--imp),.6);box-shadow:0 0 0 1px rgba(var(--imp),.35)}
+.banner:after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:40%;background:linear-gradient(90deg,transparent,rgba(var(--ov),.12),transparent);animation:sweep 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes sweep{0%{transform:translateX(0)}60%,100%{transform:translateX(400%)}}
+.b-ico{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:none;margin-right:14px}
+.sur .b-ico{background:rgba(var(--pv),.2);color:rgb(var(--pv))}
+.imp .b-ico{background:rgba(var(--imp),.2);color:rgb(var(--imp))}
+.b-ico ha-icon{--mdc-icon-size:28px;display:flex}
+.sur .b-ico ha-icon{animation:spin 12s linear infinite}
+.imp .b-ico ha-icon{animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.45}}
+.b-txt{display:flex;flex-direction:column;min-width:0;margin-right:auto}
+.b-title{font-size:1.15rem;font-weight:750;letter-spacing:-.01em}
+.sur .b-title{color:rgb(var(--pv))}.imp .b-title{color:rgb(var(--imp))}
+.b-sub{font-size:calc(.78rem*var(--ts,1));color:rgb(var(--mut));margin-top:3px}
+.b-sub b{color:var(--txt)}
+.b-chips{display:flex;flex-wrap:wrap;justify-content:flex-end;margin-left:12px}
+.chip{display:flex;align-items:center;font-size:.76rem;font-weight:650;padding:7px 12px;border-radius:999px;margin:3px 0 3px 8px;background:rgba(var(--ov),.07);border:1px solid rgba(var(--ov),.12);white-space:nowrap}
+.chip ha-icon{--mdc-icon-size:16px;margin-right:6px;display:flex}
+.chip.run{background:rgba(var(--exp),.15);border-color:rgba(var(--exp),.45);color:rgb(var(--exp))}
+.wide .b-title{font-size:1.35rem}.wide .b-sub{font-size:.88rem}.wide .chip{font-size:.85rem}
+.narrow .banner.show{flex-wrap:wrap}.narrow .b-chips{margin:8px 0 0;justify-content:flex-start}
+.stage{position:relative}
+svg.links{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
+.track{fill:none;stroke:rgba(var(--ov),.07);stroke-width:2}
+.glow{fill:none;stroke:rgb(var(--c));stroke-width:9;stroke-linecap:round;opacity:0;transition:opacity .6s}
+.flow{fill:none;stroke:rgb(var(--c));stroke-width:4.5;stroke-linecap:round;stroke-dasharray:0 18;opacity:0;transition:opacity .6s;animation:dash var(--d,1s) linear infinite}
+.link.on .flow{opacity:1}.link.on .glow{opacity:0}.link.on .track{stroke:rgba(var(--c),.28)}
+.link.rev .flow{animation-direction:reverse}
+@keyframes dash{from{stroke-dashoffset:0}to{stroke-dashoffset:-18}}
+.layout{position:relative;z-index:1;display:grid;grid-template-columns:1fr minmax(170px,1.15fr) 1fr;grid-template-areas:"pv hub bat" "grid hub bat";grid-gap:24px 34px;gap:24px 34px;align-items:center}
+.node{position:relative;padding:15px 16px;border-radius:22px;background:linear-gradient(160deg,rgba(var(--ov),.065),rgba(var(--ov),.015)),var(--panel);border:1px solid var(--stroke);cursor:pointer;transition:border-color .5s,box-shadow .5s,transform .25s,opacity .5s;min-width:0}
+.node:active,.cons:active,.hub:active{transform:scale(.98)}
+.node.on{border-color:rgba(var(--c),.6);box-shadow:inset 0 0 0 1px rgba(var(--c),.16),0 0 0 1px rgba(var(--c),.35)}
+.node.on:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(var(--c),.12);opacity:0;pointer-events:none;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:1}}
+.node:not(.on){border-color:rgba(var(--ov),.05)}
+.node:not(.on) .val,.node:not(.on) .n-top,.node:not(.on) .sub{opacity:.7}
+.pv{grid-area:pv}.pv2{grid-area:pv2}.grid{grid-area:grid}.bat{grid-area:bat}
+.bats{grid-area:bat;display:flex;flex-direction:column;justify-content:center;gap:24px 0;min-width:0}.bats .bat{grid-area:auto}
+.narrow .bats{gap:16px 0}
+.layout.has-pv2{grid-template-areas:"pv hub bat" "pv2 hub bat" "grid hub bat"}
+/* pv_to_battery: direkt: Solar steht über dem Speicher (der Strom läuft durch ihn), das Netz wechselt auf die rechte Seite */
+.layout.via-bat{grid-template-areas:"pv hub grid" "bat hub grid";row-gap:44px}
+.layout.via-bat.has-pv2{grid-template-areas:"pv2 hub grid" "pv hub grid" "bat hub grid"}
+.n-top{display:flex;align-items:center;color:rgb(var(--mut));font-size:calc(.7rem*var(--ts,1));text-transform:uppercase;letter-spacing:.1em;font-weight:650}
+.ico{width:32px;height:32px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(var(--c),.16);color:rgb(var(--c));flex:none;margin-right:9px}
+.ico ha-icon{--mdc-icon-size:18px;display:flex}
+.lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.val{margin-top:12px;display:flex;align-items:baseline}
+.num{font-size:calc(1.95rem*var(--vs,1));font-weight:750;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1;color:var(--txt);transition:color .5s}
+.node.on .num{color:rgb(var(--c));text-shadow:none}
+.unit{font-size:calc(.85rem*var(--vs,1));color:rgb(var(--mut));font-weight:650;margin-left:5px}
+.tag{display:inline-flex;margin-top:9px;font-size:calc(.64rem*var(--ts,1));font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:rgba(var(--c),.15);color:rgb(var(--c))}
+.tag:empty{display:none}
+.sub{margin-top:9px;font-size:calc(.74rem*var(--ts,1));color:rgb(var(--mut));line-height:1.55}
+.sub .sr{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sub .sr b{color:var(--txt);font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sub:empty{display:none}
+.sub b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+.soc{margin-top:13px;position:relative;height:9px;border-radius:999px;background:rgba(var(--ov),.07);overflow:hidden}
+.soc-fill{position:absolute;top:0;left:0;bottom:0;width:0;border-radius:inherit;background:linear-gradient(90deg,rgba(var(--sc,var(--c)),.45),rgb(var(--sc,var(--c))));box-shadow:0 0 0 1px rgba(var(--sc,var(--c)),.35);transition:width 1.2s cubic-bezier(.2,.8,.2,1);overflow:hidden}
+.bat.charging .soc-fill:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(var(--ov),.55),transparent);animation:shine 1.8s linear infinite}
+@keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.soc-low,.soc-high{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(-45deg,rgba(var(--ov),.22) 0 3px,rgba(var(--ov),.06) 3px 6px);pointer-events:none}
+.soc-low{left:0;border-right:1px solid rgba(var(--ov),.5)}
+.soc-high{right:0;border-left:1px solid rgba(var(--ov),.5)}
+.soc-row{display:flex;justify-content:space-between;margin-top:7px;font-size:calc(.74rem*var(--ts,1));color:rgb(var(--mut))}
+.soc-row b{color:var(--txt);font-weight:650;font-variant-numeric:tabular-nums}
+.hub-wrap{grid-area:hub;display:flex;flex-direction:column;align-items:center}
+.hub{position:relative;width:100%;max-width:250px;cursor:pointer;transition:transform .25s}
+.hub:before{content:'';display:block;padding-top:100%}
+.hub svg{position:absolute;top:0;left:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.ring-bg{fill:none;stroke:rgba(var(--ov),.06);stroke-width:6}
+/* Punkte aus runden Linienenden (wie bei .flow): bleiben auch klein und auf dem iPhone sichtbar */
+.orbit{fill:none;stroke:rgba(var(--ov),.22);stroke-width:1.1;stroke-linecap:round;stroke-dasharray:0 4;transform-origin:60px 60px;animation:spin 40s linear infinite}
+.narrow .orbit,.cmp .orbit{stroke:rgba(var(--ov),.3);stroke-width:1.9;stroke-dasharray:0 5.2}
+@keyframes spin{to{transform:rotate(360deg)}}
+.seg{fill:none;stroke:currentColor;stroke-width:6;stroke-linecap:round;stroke-dasharray:0 100;opacity:0;transition:opacity .6s,stroke-dasharray 1.2s cubic-bezier(.2,.8,.2,1),stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+.core{position:absolute;top:14%;left:14%;right:14%;bottom:14%;border-radius:50%;background:radial-gradient(circle at 50% 28%,var(--bg2),var(--bg0) 72%);border:1px solid rgba(var(--ov),.08);box-shadow:0 0 0 1px rgba(var(--home),.35),inset 0 1px 0 rgba(var(--ov),.07);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.core ha-icon{color:rgb(var(--home));--mdc-icon-size:26px;margin-bottom:6px}
+.core .val{margin:0}
+.core .num{font-size:calc(2.15rem*var(--vs,1));color:rgb(var(--home));text-shadow:none}
+.hub-lbl{font-size:calc(.62rem*var(--ts,1));letter-spacing:.16em;text-transform:uppercase;color:rgb(var(--mut));font-weight:650;margin-top:7px}
+.mix{display:flex;font-size:calc(.7rem*var(--ts,1));color:rgb(var(--mut));flex-wrap:wrap;justify-content:center;margin-top:14px}
+.mix span{display:flex;align-items:center;margin:0 6px}
+.mix i{width:7px;height:7px;border-radius:50%;background:rgb(var(--c));box-shadow:0 0 0 1px rgba(var(--c),.35);margin-right:5px}
+.mix b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:600;margin-left:4px}
+.consumers{position:relative;z-index:1;display:grid;justify-content:center;grid-template-columns:repeat(auto-fit,minmax(max(140px,calc(140px*var(--ts,1))),max(240px,calc(240px*var(--ts,1)))));grid-gap:12px;gap:12px;margin-top:54px}
+.cons{display:flex;align-items:center;padding:11px 12px;border-radius:17px;background:var(--glass);border:1px solid var(--stroke);cursor:pointer;transition:all .5s;min-width:0}
+.cons .ico{margin-right:10px}
+.cons.on{border-color:rgba(var(--c),.55);background:rgba(var(--c),.07);box-shadow:0 0 0 1px rgba(var(--c),.35)}
+.cons.on .ico,.grp.on .ico{position:relative}
+.cons.on .ico:after,.grp.on .ico:after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;box-shadow:0 0 0 1px rgba(var(--c),.35);opacity:0;pointer-events:none;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{opacity:1}}
+.cons:not(.on){opacity:.55}
+.c-txt{display:flex;flex-direction:column;min-width:0}
+.cons .lbl{font-size:calc(.64rem*var(--ts,1));color:rgb(var(--mut));text-transform:uppercase;letter-spacing:.08em;font-weight:650;margin-bottom:3px}
+.cons .val{margin:0}
+.cons .num{font-size:calc(1.1rem*var(--vs,1))}.cons .unit{font-size:calc(.7rem*var(--vs,1));margin-left:3px}
+.cons.on .num{color:rgb(var(--c))}
+.c-sec{margin-left:auto;padding-left:6px;font-size:calc(.72rem*var(--ts,1));color:rgb(var(--mut));white-space:nowrap;font-variant-numeric:tabular-nums}
+footer{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));grid-gap:10px;gap:10px;margin-top:20px;padding-top:18px;border-top:1px solid var(--stroke);position:relative}
+.stat{display:flex;flex-direction:column;padding:11px 13px;border-radius:15px;background:rgba(var(--ov),.028);border:1px solid rgba(var(--ov),.04)}
+.stat span{font-size:calc(.62rem*var(--ts,1));color:rgb(var(--mut));text-transform:uppercase;letter-spacing:.09em;font-weight:650;display:flex;align-items:center;margin-bottom:5px}
+.stat span i{flex:none;width:6px;height:6px;border-radius:50%;background:rgb(var(--c));margin-right:6px}
+.stat span{min-width:0;overflow-wrap:anywhere;-webkit-hyphens:auto;hyphens:auto}
+.stat.fc{cursor:pointer}
+.stat.fc span i{background:none;box-shadow:inset 0 0 0 1.5px rgb(var(--c))}
+.stat b{font-size:1.1rem;font-variant-numeric:tabular-nums;font-weight:700;margin-top:auto}
+.stat small{color:rgb(var(--mut));font-weight:500;font-size:.72rem;margin-left:3px}
+.groups{position:relative;z-index:1;display:grid;grid-gap:10px;gap:10px;margin-top:54px}
+.grp{position:relative;padding:10px 10px 8px;border-radius:17px;background:linear-gradient(160deg,rgba(var(--ov),.06),rgba(var(--ov),.012)),var(--panel);border:1px solid var(--stroke);transition:border-color .5s,box-shadow .5s,opacity .5s;min-width:0}
+.grp.on{border-color:rgba(var(--c),.6);box-shadow:inset 0 0 0 1px rgba(var(--c),.12),0 0 0 1px rgba(var(--c),.35)}
+.grp:not(.on){opacity:.6}
+.g-hd{display:flex;align-items:center;min-width:0}
+.grp .ico{width:26px;height:26px;border-radius:9px;margin-right:7px}
+.grp .ico ha-icon{--mdc-icon-size:15px}
+.grp .lbl{font-size:calc(.6rem*var(--ts,1));color:rgb(var(--mut));text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.grp .val{margin-top:7px}
+.grp .num{font-size:calc(1.25rem*var(--vs,1))}.grp .unit{font-size:calc(.68rem*var(--vs,1));margin-left:3px}
+.grp.on .num{color:rgb(var(--c));text-shadow:none}
+.its{margin-top:6px;border-top:1px solid rgba(var(--ov),.06);padding-top:4px;display:flex;flex-direction:column}
+.it{display:flex;align-items:center;font-size:calc(.64rem*var(--ts,1));color:rgb(var(--mut));line-height:1.8;min-width:0;cursor:pointer}
+.it i{flex:none;width:5px;height:5px;border-radius:50%;background:rgba(var(--ov),.2);margin-right:5px;transition:background .4s,box-shadow .4s}
+.it.on i{background:rgb(var(--c));box-shadow:0 0 0 1px rgba(var(--c),.35)}
+.it.on{color:var(--txt)}
+.it .in{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it b{flex:none;margin-left:4px;color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+.it.off{display:none}
+.grp.rest .it{cursor:default}
+.grp.rest .ico{background:rgba(var(--ov),.06)}
+/* Tablet / Wandpanel */
+.wide{padding:26px 30px}
+.wide header{margin-bottom:26px}
+.wide .title{font-size:calc(1.25rem*var(--ts,1))}
+.wide .pill{font-size:calc(.85rem*var(--ts,1));padding:8px 14px}
+.wide .layout{grid-template-columns:1fr minmax(260px,1.1fr) 1fr;gap:28px 56px}
+.wide .node{padding:20px 22px;border-radius:26px}
+.wide .n-top{font-size:calc(.8rem*var(--ts,1))}
+.wide .ico{width:40px;height:40px;border-radius:13px}
+.wide .ico ha-icon{--mdc-icon-size:22px}
+.wide .num{font-size:calc(2.6rem*var(--vs,1))}
+.wide .unit{font-size:calc(1rem*var(--vs,1))}
+.wide .sub{font-size:calc(.86rem*var(--ts,1))}
+.wide .soc-row{font-size:calc(.86rem*var(--ts,1))}
+.wide .tag{font-size:calc(.72rem*var(--ts,1));padding:4px 11px}
+.wide .hub{max-width:300px}
+.wide .core .num{font-size:calc(2.8rem*var(--vs,1))}
+.wide .core ha-icon{--mdc-icon-size:32px}
+.wide .hub-lbl{font-size:calc(.72rem*var(--ts,1))}
+.wide .mix{font-size:calc(.82rem*var(--ts,1))}
+.wide .consumers{grid-template-columns:repeat(auto-fit,minmax(max(200px,calc(200px*var(--ts,1))),max(260px,calc(260px*var(--ts,1)))));gap:14px;margin-top:60px}
+.wide .cons{padding:14px 16px;border-radius:20px}
+.wide .cons .num{font-size:calc(1.35rem*var(--vs,1))}
+.wide .cons .lbl{font-size:calc(.72rem*var(--ts,1))}
+.wide .groups{gap:12px;margin-top:60px}
+.wide .grp{padding:12px 12px 9px;border-radius:19px}
+.wide .grp .num{font-size:calc(1.5rem*var(--vs,1))}
+.wide .grp .lbl{font-size:calc(.66rem*var(--ts,1))}
+.wide .it{font-size:calc(.72rem*var(--ts,1))}
+.wide .stat b{font-size:1.35rem}
+.wide .stat span{font-size:calc(.7rem*var(--ts,1))}
+/* groups_lines: sammel: eine Linie zum ganzen Verbraucherbereich */
+.sam-on .mix{order:-1;margin:0 0 12px}
+/* Klassische Ansicht: Legende über dem Ring, dort kommt keine Linie an (unten laufen die Linien zu den Verbrauchern, auf dem Handy zu Solar, Netz und Batterie) */
+.wrap:not(.s3d) .mix{order:-1;margin:0 0 12px}
+.sambox{position:relative;z-index:1;margin-top:46px;padding:30px 12px 12px;border:1px solid var(--stroke);border-radius:26px;background:rgba(var(--ov),.018)}
+.wrap .sambox .consumers,.wrap .sambox .groups{margin-top:0}
+.wrap .sambox .consumers+.groups{margin-top:12px}
+.sam{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:9px;padding:7px 16px;border-radius:999px;background:var(--panel);border:1px solid var(--stroke);white-space:nowrap;z-index:2;transition:border-color .5s,box-shadow .5s}
+.sam.on{border-color:rgba(var(--home),.6);box-shadow:0 0 0 1px rgba(var(--home),.3)}
+.sam-t{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgb(var(--mut));font-weight:650}
+.sam-w{font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--txt)}
+/* Verbraucher-Kacheln decken die Linien ab, die dahinter zum Haus laufen */
+.cons{background:linear-gradient(var(--glass),var(--glass)),var(--bg0)}
+.cons.on{background:linear-gradient(rgba(var(--c),.07),rgba(var(--c),.07)),linear-gradient(var(--glass),var(--glass)),var(--bg0)}
+/* size: gross (je Verbraucher): breite, hervorgehobene Kachel mit grosser Zahl, z. B. Waermepumpe oder Wallbox */
+.cons.big{grid-column:span 2;padding:18px 20px;border-radius:22px}
+.cons.big .ico{transform:scale(1.4);margin:0 20px 0 6px}
+.cons.big .lbl{font-size:calc(.95rem*var(--ts,1));margin-bottom:6px;white-space:normal}
+.cons.big .c-sec{font-size:calc(1.1rem*var(--ts,1))}
+.cons.big .num{font-size:calc(1.95rem*var(--vs,1))}
+.cons.big .unit{font-size:calc(.95rem*var(--vs,1));margin-left:5px}
+.wide .cons.big{padding:22px 26px;border-radius:26px}
+.wide .cons.big .num{font-size:calc(2.5rem*var(--vs,1))}
+.wide .cons.big .unit{font-size:calc(1.1rem*var(--vs,1))}
+.wide .cons.big .lbl{font-size:calc(1.05rem*var(--ts,1))}
+.wide .cons.big .c-sec{font-size:calc(1.2rem*var(--ts,1))}
+/* size: mittel (je Verbraucher): eine Spalte breit, aber mit groesserer Zahl und groesserem Namen */
+.cons.mid{padding:14px 16px;border-radius:20px}
+.cons.mid .ico{transform:scale(1.2);margin:0 14px 0 4px}
+.cons.mid .lbl{font-size:calc(.82rem*var(--ts,1));white-space:normal}
+.cons.mid .c-sec{font-size:calc(.95rem*var(--ts,1))}
+.cons.mid .num{font-size:calc(1.7rem*var(--vs,1))}
+.cons.mid .unit{font-size:calc(.85rem*var(--vs,1))}
+.wide .cons.mid{padding:16px 20px;border-radius:22px}
+.wide .cons.mid .num{font-size:calc(2rem*var(--vs,1))}
+.wide .cons.mid .lbl{font-size:calc(.9rem*var(--ts,1))}
+.cmp .cons.mid{padding:8px 10px;border-radius:14px}
+.cmp .cons.mid .ico{transform:none;margin:0 10px 0 0}
+.cmp .cons.mid .num{font-size:calc(1rem*var(--vs,1))}
+.cmp .cons.mid .lbl{font-size:calc(.64rem*var(--ts,1))}
+.consumers.hm{grid-template-columns:repeat(auto-fit,minmax(190px,300px))}
+.wide .consumers.hm{grid-template-columns:repeat(auto-fit,minmax(min(100%,max(250px,calc(250px*var(--ts,1)))),max(340px,calc(340px*var(--ts,1)))))}
+.narrow .consumers.hm{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.wrap.cmp .consumers.hm{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}
+.narrow .cons.big,.cmp .cons.big{grid-column:auto}
+.narrow .cons.big .num{font-size:calc(1.6rem*var(--vs,1))}
+.cmp .cons.big{padding:10px 12px}
+.cmp .cons.big .num{font-size:calc(1.2rem*var(--vs,1))}
+.cmp .cons.big .ico{transform:none;margin:0 10px 0 0}
+/* extra / alarm (optional, je Kachel): frei waehlbare Zusatzwerte und ein Alarm, z. B. Spannung, Strom, Temperatur eines Wechselrichters */
+.xt{margin-top:10px;font-size:calc(.74rem*var(--ts,1));color:rgb(var(--mut))}
+.wide .xt{font-size:calc(.86rem*var(--ts,1))}
+.xr{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0;cursor:pointer;min-width:0}
+.xr .xl{display:flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xr .xl ha-icon{--mdc-icon-size:calc(14px*var(--ts,1));margin-right:5px;flex:none}
+.xr b{color:var(--txt);font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.xr.warn b{color:rgb(var(--pv))}
+.xa{display:flex;align-items:center;margin-bottom:6px;padding:5px 10px;border-radius:999px;font-size:calc(.7rem*var(--ts,1));font-weight:700;letter-spacing:.04em;color:rgb(var(--imp));background:rgba(var(--imp),.14);border:1px solid rgba(var(--imp),.5);cursor:pointer;width:fit-content;max-width:100%;box-sizing:border-box}
+.xa[hidden]{display:none}
+.xa:before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:rgb(var(--imp));margin-right:7px}
+.node.alarm{border-color:rgba(var(--imp),.75)!important;box-shadow:0 0 0 1px rgba(var(--imp),.4)!important}
+.cmp .xt .xr{display:none}
+.cmp .xt{margin-top:6px}
+/* why (optional): "?" an der Netz-Kachel, Fenster erklaert Netzbezug oder Einspeisung in Klartext */
+.why{position:absolute;top:10px;right:10px;z-index:3;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem;color:rgb(var(--home));background:rgba(var(--home),.14);border:1px solid rgba(var(--home),.5);cursor:pointer}
+.why:hover{background:rgba(var(--home),.26)}
+.wdlg{padding:0;width:min(92vw,470px);max-height:84vh;border-radius:24px;border:1px solid rgba(var(--home),.5);box-shadow:0 0 0 1px rgba(var(--home),.25),0 24px 60px rgba(0,0,0,.5);background:linear-gradient(160deg,rgba(var(--ov),.06),rgba(var(--ov),.012)),var(--panel);color:var(--txt);font-family:inherit}
+.wdlg::backdrop{background:rgba(0,0,0,.55)}
+.wdlg .wb{padding:6px 18px 18px;overflow:auto;max-height:calc(84vh - 70px)}
+.wdlg .wsub{font-size:.8rem;color:rgb(var(--mut));margin:6px 0 10px;line-height:1.45}
+.wr{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:.9rem}
+.wr .wn{width:36%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr .wn small{display:block;font-size:.72rem;color:rgb(var(--mut));overflow:hidden;text-overflow:ellipsis}
+.wr .wbar{flex:1;height:8px;border-radius:5px;background:rgba(var(--ov),.1);overflow:hidden}
+.wr .wbar i{display:block;height:100%;border-radius:5px}
+.wr .wv{width:78px;text-align:right;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wh{margin-top:14px;padding-top:11px;border-top:1px solid var(--stroke)}
+.wh b{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:rgb(var(--home));margin-bottom:3px}
+.wh span{font-size:.88rem;line-height:1.5;color:var(--txt)}
+.wh.tip b{color:rgb(var(--exp))}
+/* text_size: gross | sehr_gross vergrößert die kleinen Texte (Tablet, Handy). Eine Zahl (z. B. 2) vergrößert zusätzlich die Zahlen in den Kacheln */
+.ts-l{--ts:1.25}
+.ts-xl{--ts:1.5}
+.ts-l .soc-row b,.ts-xl .soc-row b,.ts-l .sub .sr b,.ts-xl .sub .sr b,.ts-l .xr b,.ts-xl .xr b{font-size:1.15em}
+.ts-l .cons .lbl,.ts-xl .cons .lbl{white-space:normal;overflow-wrap:anywhere}
+/* Smartphone */
+.narrow{padding:16px}
+.narrow header{margin-bottom:14px}
+.narrow .layout{grid-template-columns:1fr 1fr;grid-template-areas:"hub hub" "pv bat" "grid bat";gap:16px 14px}
+.narrow .layout.has-pv2{grid-template-areas:"hub hub" "pv bat" "pv2 bat" "grid bat"}
+/* pv_to_battery: direkt auf dem Handy: Solar und Netz nebeneinander, der Speicher darunter (Solar fließt senkrecht in ihn) */
+.narrow .layout.via-bat{grid-template-areas:"hub hub" "pv grid" "bat bat";row-gap:34px}
+.narrow .layout.via-bat.has-pv2{grid-template-areas:"hub hub" "pv pv2" "bat bat" "grid grid"}
+.narrow .via-bat .mix{order:-1;margin:0 0 12px}
+.narrow .hub{max-width:210px}
+.narrow .num{font-size:calc(1.5rem*var(--vs,1))}
+.narrow .core .num{font-size:calc(1.8rem*var(--vs,1))}
+.narrow .groups{margin-top:26px}
+.narrow .groups:not(.gc-fixed){grid-template-columns:repeat(3,minmax(0,1fr))!important}
+/* groups_columns: breite Gruppen verteilen ihre Einträge auf mehrere Spalten */
+.groups.gc-fixed .its{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:16px}
+.narrow .consumers{margin-top:26px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));justify-content:stretch}
+/* compact: Kurzansicht fürs Handy, alles Wichtige auf einen Blick (Erzeuger neben dem Ring, Gruppen ohne Geräteliste) */
+.cmp{padding:14px}
+.cmp header{margin-bottom:10px}
+.cmp .pill{font-size:calc(.66rem*var(--ts,1));padding:4px 9px}
+.cmp .banner.show{padding:9px 12px;margin-bottom:12px}
+.cmp .b-ico{width:34px;height:34px;border-radius:11px;margin-right:10px}
+.cmp .b-ico ha-icon{--mdc-icon-size:20px}
+.cmp .b-title{font-size:.92rem}
+.wrap.cmp .layout{grid-template-columns:1fr minmax(88px,.8fr) 1fr;grid-template-areas:"pv hub bat" "grid hub bat";gap:10px 12px}
+.wrap.cmp .layout.has-pv2{grid-template-areas:"pv hub bat" "pv2 hub bat" "grid hub bat"}
+.wrap.cmp .layout.via-bat{grid-template-areas:"pv hub grid" "bat hub grid"}
+.wrap.cmp .layout.via-bat.has-pv2{grid-template-areas:"pv2 hub grid" "pv hub grid" "bat hub grid"}
+.cmp .node{padding:10px 11px;border-radius:17px}
+.cmp .n-top{font-size:calc(.58rem*var(--ts,1));letter-spacing:.06em}
+.cmp .ico{width:24px;height:24px;border-radius:8px;margin-right:6px}
+.cmp .ico ha-icon{--mdc-icon-size:14px}
+.cmp .val{margin-top:7px}
+.cmp .num{font-size:calc(1.2rem*var(--vs,1))}
+.cmp .unit{font-size:calc(.68rem*var(--vs,1));margin-left:3px}
+.cmp .tag{margin-top:6px;font-size:calc(.54rem*var(--ts,1));padding:2px 7px}
+.cmp .soc{margin-top:8px;height:7px}
+.cmp .soc-row{margin-top:4px;font-size:calc(.66rem*var(--ts,1))}
+.cmp .sub,.cmp .soc-row span,.cmp .mix,.cmp .hub-lbl,.cmp .b-sub,.cmp .b-chips,.wrap.cmp .groups .its,.cmp .c-sec{display:none}
+.cmp .hub{max-width:130px}
+.cmp .core ha-icon{--mdc-icon-size:16px;margin-bottom:2px}
+.cmp .core .num{font-size:calc(1.1rem*var(--vs,1))}
+.cmp .sambox{margin-top:30px;padding:24px 8px 8px;border-radius:20px}
+.cmp .sam{padding:5px 12px}
+.wrap.cmp .consumers,.wrap.cmp .groups{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:8px;justify-content:stretch}
+.cmp .cons{padding:8px 10px;border-radius:14px}
+.cmp .cons .num{font-size:calc(1rem*var(--vs,1))}
+.cmp .grp{padding:8px 10px;border-radius:14px}
+.cmp .grp:not(.rest){cursor:pointer}
+.cmp .grp:not(.rest) .g-hd:after{content:'›';margin-left:auto;padding-left:6px;color:rgb(var(--mut));font-size:1.1rem;line-height:1}
+/* Kurzansicht: Tipp auf eine Gruppe öffnet ein Fenster mit allen Geräten */
+.gdlg{padding:0;width:min(92vw,440px);max-height:80vh;border-radius:24px;border:1px solid rgba(var(--c),.5);box-shadow:0 0 0 1px rgba(var(--c),.25),0 24px 60px rgba(0,0,0,.5);background:linear-gradient(160deg,rgba(var(--ov),.06),rgba(var(--ov),.012)),var(--panel);color:var(--txt);font-family:Inter,var(--ha-font-family-body,system-ui),sans-serif;overflow:hidden}
+.gdlg::backdrop{background:rgba(0,0,0,.55)}
+.d-hd{display:flex;align-items:center;padding:16px 16px 14px 18px;border-bottom:1px solid var(--stroke)}
+.d-name{flex:1;min-width:0;font-weight:700;font-size:1.05rem;overflow-wrap:anywhere}
+.d-sum{margin-left:10px;font-size:1.35rem;font-weight:750;color:rgb(var(--c));font-variant-numeric:tabular-nums;white-space:nowrap}
+.d-x{margin-left:12px;flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--stroke);background:rgba(var(--ov),.06);color:var(--txt);font-size:1.2rem;line-height:1;cursor:pointer}
+.d-its{padding:8px 10px 14px;overflow:auto;max-height:calc(80vh - 72px);display:flex;flex-direction:column}
+.d-it{display:flex;align-items:center;padding:11px 8px;border-radius:12px;font-size:.95rem;color:rgb(var(--mut));cursor:pointer}
+.d-it:active{background:rgba(var(--ov),.07)}
+.d-it i{flex:none;width:8px;height:8px;border-radius:50%;background:rgba(var(--ov),.2);margin-right:10px}
+.d-it.on{color:var(--txt)}
+.d-it.on i{background:rgb(var(--c));box-shadow:0 0 0 2px rgba(var(--c),.3)}
+.d-it .in{flex:1;min-width:0;overflow-wrap:anywhere}
+.d-it b{margin-left:12px;color:var(--txt);font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp .grp .val{margin-top:4px}
+.cmp .grp .num{font-size:calc(1.05rem*var(--vs,1))}
+.cmp footer{grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:6px;margin-top:12px;padding-top:12px}
+.cmp .stat{padding:7px 8px;border-radius:12px}
+.cmp .stat span{font-size:calc(.52rem*var(--ts,1));letter-spacing:.05em;margin-bottom:3px}
+.cmp .stat b{font-size:.9rem}
+.ico.logo,.grp .ico.logo{width:auto;height:auto;min-width:0;background:none;box-shadow:none;border-radius:6px}
+.s3d .soc-row{line-height:1.1}
+.s3d .tag{max-width:100%;box-sizing:border-box;white-space:normal;overflow-wrap:anywhere}
+.ico.logo img{display:block;height:28px;max-width:96px;object-fit:contain;border-radius:5px}
+.cons .ico.logo img{height:30px;max-width:80px}
+/* animations: always (oder immer) animiert auch bei "Bewegung reduzieren" am Gerät */
+@media (prefers-reduced-motion:reduce){.wrap:not(.anim-on) .flow,.wrap:not(.anim-on) .orbit,.wrap:not(.anim-on) .node.on:after,.wrap:not(.anim-on) .live:after,.wrap:not(.anim-on) .cons.on .ico:after,.wrap:not(.anim-on) .grp.on .ico:after{animation-duration:0s!important}}
+`;
+
+class EnergyCockpitFlowCard extends HTMLElement {
+  constructor() {
+    super();
+    this._dec = {};
+    this._tw = {};
+    this._raf = null;
+    this.attachShadow({ mode: 'open' });
+  }
+  static getStubConfig(hass) {
+    // Erste passende Entitäten vorschlagen, damit die Karte nach dem Hinzufügen etwas zeigt
+    const ids = hass && hass.states ? Object.keys(hass.states) : [];
+    const find = (re) => ids.find((i) => re.test(i)) || '';
+    // Bewusst leer: Die Karte startet im Einrichtungsassistenten, der Sensoren vorschlägt und den aktuellen Wert zeigt
+    void find; void ids;
+    return {};
+  }
+  static getConfigElement() { return document.createElement('energy-cockpit-flow-card-editor'); }
+  setConfig(config) {
+    WD.applyTheme(this, config, this._hass);
+    if (!config || ((!config.pv || !config.pv.entity) && (!config.grid || !config.grid.entity))) {
+      // Noch nicht eingerichtet: Hinweisfläche statt Fehlermeldung, der Assistent im Editor hilft weiter
+      this._c = null;
+      this.shadowRoot.innerHTML = '<style>' + WD.themeCss() + 'ha-card{padding:22px;border-radius:24px;background:var(--panel);color:var(--txt);font-family:system-ui,sans-serif}b{color:#60a5fa}</style><ha-card><b>Energy-Cockpit Energiefluss</b><div style="margin-top:8px;opacity:.8">Noch nicht eingerichtet. Karte bearbeiten (Stift): Der <b>Assistent</b> hilft dir, die Sensoren auszuwählen.</div></ha-card>';
+      return;
+    }
+    this._c = JSON.parse(JSON.stringify(config));
+    this._dec = WD.decOf(this._c);
+    // consumer_groups_sort: leistung (#24): Geräte einer Gruppe nach aktueller Leistung, aktive oben. Reihenfolge je Gruppe merken
+    this._gSort = this._c.consumer_groups_sort === 'leistung' || this._c.consumer_groups_sort === 'power';
+    this._gOrd = {}; this._gSortT = 0;
+    this._dTot = null; this._dLoaded = 0; this._dErr = false;
+    // Listen können als Array oder als Objekt {0:…, 1:…} vorliegen (so speichert sie das Formular von Home Assistant)
+    const arr = (v) => (Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v).sort((a, b) => a - b).map((k) => v[k]) : []));
+    const used = (x) => x && (x.entity || x.secondary);
+    // Speicher: batteries (Liste) hat Vorrang, sonst der einzelne Eintrag battery
+    const usedB = (b) => b && (b.power || b.power_charge || b.power_discharge || b.soc || b.temp || (b.extra && b.extra.length));
+    // battery ist der erste Speicher, batteries enthält die weiteren (ohne battery: batteries allein)
+    const more = arr(this._c.batteries).filter(usedB);
+    const first = this._c.battery;
+    const bl = more.length ? (usedB(first) ? [first].concat(more) : more) : (first ? [first] : []);
+    this._c.batteries = bl;
+    if (bl.length) this._c.battery = bl[0];
+    // pv_to_battery: direkt (Speicher vor dem Wechselrichter, z. B. Marstek B2500): nur mit PV-Sensor und Ausgangsleistung des ersten Speichers
+    const vb = this._c.pv_to_battery;
+    this._via = (vb === 'direkt' || vb === true) && !!(this._c.pv && this._c.pv.entity) && !!(bl[0] && bl[0].power_out);
+    // pv2.to_battery: Nummer des Speichers, durch den PV 2 läuft (1 = battery, 2 = erster Eintrag unter batteries, …), z. B. Anker SOLIX Solarbank mit eigenen Modulen
+    // und AC-Ladung aus dem Haus (power_in). Der Speicher braucht power_out (AC-Abgabe ins Haus) und gilt als hinter dem Zähler
+    const tb = parseInt(this._c.pv2 && this._c.pv2.to_battery, 10);
+    this._via2 = this._c.pv2 && this._c.pv2.entity && tb >= 1 && bl[tb - 1] && bl[tb - 1].power_out && !(this._via && tb === 1) ? tb - 1 : -1;
+    if (this._via2 >= 0) bl[this._via2].behind_meter = true;
+    this._s3d = this._c.style === '3d';
+    const pf = WD.palFor(this._c.colors);
+    this._pal = pf.pal; this._palSet = pf.set;
+    // text_size als Zahl (z. B. 2): Faktor fuer alle Texte und die Zahlen in den Kacheln. gross/sehr_gross bleiben wie bisher
+    const tsn = parseFloat(String(this._c.text_size).replace(',', '.'));
+    // label_size (optional): Faktor nur fuer die kleinen Texte (Namen, Zusatzwerte, Beschriftungen), unabhaengig von den Zahlen in den Kacheln
+    const lsn = parseFloat(String(this._c.label_size).replace(',', '.'));
+    this._lsn = !isNaN(lsn) && lsn > 0 ? Math.min(4, Math.max(0.5, lsn)) : 0;
+    this._tsn = !isNaN(tsn) && !/^(normal|gross|sehr_gross)$/.test(String(this._c.text_size)) ? Math.min(4, Math.max(0.5, tsn)) : 0;
+    this._c.consumers = arr(this._c.consumers).filter(used);
+    // grid2 (optional, #29): zweiter Netzzähler, z. B. Wärmepumpe mit eigenem Zähler und Tarif (nur Bezug). Erscheint als Kachel bei den Verbrauchern,
+    // zählt zum Hausverbrauch und im Ring zum Netz. Der Preis (price oder price_ct) steht als Kosten pro Stunde in der Kachel
+    const g2 = this._c.grid2;
+    this._c.grid2 = g2 && typeof g2 === 'object' && typeof g2.entity === 'string' && g2.entity ? g2 : null;
+    if (this._c.grid2) this._c.consumers.unshift({ entity: g2.entity, name: g2.name || T('flow.grid2'), icon: g2.icon || 'mdi:heat-pump-outline', color: '#ff5c7a', _g2: true });
+    this._c.consumer_groups = arr(this._c.consumer_groups)
+      .map((g) => Object.assign({}, g, { items: arr(g && g.items).filter(used) }))
+      .filter((g) => g.name || g.items.length);
+    this._build();
+    if (this._hass) this._update();
+  }
+  // Höchstens ein Durchlauf je Sekunde: Sensoren melden oft mehrmals pro Sekunde, die Anzeige gewinnt dadurch nichts
+  set hass(h) {
+    this._hNext = h;
+    if (this._hT) return;
+    const wait = (WD.flowUpdateMs === undefined ? 1000 : WD.flowUpdateMs) - (Date.now() - (this._hLast || 0));
+    if (wait > 0) { this._hT = setTimeout(() => { this._hT = null; this._applyHass(this._hNext); }, wait); return; }
+    this._applyHass(h);
+  }
+  _applyHass(h) {
+    this._hLast = Date.now();
+      WD.applyTheme(this, null, h);
+    setLocale(h);
+    // Sprache aus Home Assistant erst jetzt bekannt: statische Texte neu aufbauen
+    if (this._c && this._bl !== WD.state.lang) this._build();
+    this._hass = h;
+    this._update();
+    this._loadDaily();
+    if (this._c && this._c.weather) { if (!this._skyLoading && Date.now() - (this._skyLoaded || 0) > 30 * 60 * 1000) this._loadSky(); this._sky(true); }
+    if (this._c && this._c.waste && !this._wLoading && Date.now() - (this._wLoaded || 0) > 30 * 60 * 1000) this._loadWaste();
+  }
+  // daily_from_total (optional): Tageswerte aus Gesamtzählern wie im Energie-Dashboard, Änderung seit Mitternacht aus der Langzeitstatistik
+  _dailyIds() {
+    const c = this._c, ids = [];
+    const add = (id) => { if (id && ids.indexOf(id) < 0) ids.push(id); };
+    if (c.pv) add(c.pv.daily);
+    if (c.pv2) add(c.pv2.daily);
+    if (c.grid) { add(c.grid.daily_import); add(c.grid.daily_export); }
+    c.batteries.forEach((b) => { add(b.daily_charge); add(b.daily_discharge); });
+    if (c.home) add(c.home.daily);
+    return ids;
+  }
+  async _loadDaily() {
+    const c = this._c, h = this._hass;
+    if (!c || !c.daily_from_total || !h || !h.callWS || this._dLoading) return;
+    const now = new Date(), day = now.toDateString();
+    if (this._dDay === day && Date.now() - (this._dLoaded || 0) < 120000) return;
+    const ids = this._dailyIds();
+    if (!ids.length) return;
+    this._dLoading = true;
+    try {
+      const s = new Date(now); s.setHours(0, 0, 0, 0);
+      const r = await h.callWS({ type: 'recorder/statistics_during_period', start_time: s.toISOString(), period: '5minute', statistic_ids: ids, types: ['change'], ...WD.statUnits(c) });
+      const t = {};
+      ids.forEach((id) => { const rows = (r && r[id]) || []; t[id] = rows.length ? rows.reduce((a, x) => a + (x.change > 0 ? x.change : 0), 0) : null; });
+      this._dTot = t; this._dErr = false;
+    } catch (e) { this._dErr = true; }
+    this._dDay = day; this._dLoaded = Date.now(); this._dLoading = false;
+    this._update();
+  }
+  // Müllabfuhr aus dem Abfallkalender: Hinweis-Chip am Vortag / Abholtag
+  async _loadWaste() {
+    const h = this._hass, w = this._c.waste;
+    if (!h || !h.callApi || !w.calendar) return;
+    this._wLoading = true;
+    try {
+      const s = new Date(); s.setHours(0, 0, 0, 0);
+      const e = new Date(s.getTime() + 3 * 864e5);
+      const ev = await h.callApi('GET', `calendars/${encodeURIComponent(w.calendar)}?start=${encodeURIComponent(s.toISOString())}&end=${encodeURIComponent(e.toISOString())}`);
+      this._waste = (ev || []).map((x) => {
+        const t = document.createElement('textarea'); t.innerHTML = x.summary || '';
+        const lower = t.value.toLowerCase();
+        const type = (w.types || []).find((y) => lower.includes(y.match));
+        const d = String((x.start && (x.start.date || x.start.dateTime)) || x.start).slice(0, 10).split('-').map(Number);
+        return type ? { type, date: new Date(d[0], d[1] - 1, d[2]) } : null;
+      }).filter(Boolean);
+      this._wLoaded = Date.now();
+    } catch (err) {
+      console.warn('energy-cockpit-flow-card: waste', err);
+      this._wLoaded = Date.now() - 25 * 60 * 1000;
+    }
+    this._wLoading = false;
+    this._wasteChip();
+  }
+  // Himmelsband (optional, weather): 24 Stunden als Farbstreifen, Punkt = jetzt. Stundenwerte aus weather.get_forecasts, Tageslicht aus sun.sun
+  _skyEnt() {
+    const w = this._c && this._c.weather, h = this._hass;
+    if (!w || !h || !h.states) return null;
+    if (typeof w === 'string' && w !== 'auto') return h.states[w] ? w : null;
+    return Object.keys(h.states).find((i) => i.indexOf('weather.') === 0) || null;
+  }
+  async _loadSky() {
+    const h = this._hass, id = this._skyEnt();
+    if (!h || !id) return;
+    this._skyLoading = true;
+    let fc = null;
+    try {
+      const r = await h.callWS({ type: 'call_service', domain: 'weather', service: 'get_forecasts', service_data: { type: 'hourly' }, target: { entity_id: id }, return_response: true });
+      const x = r && r.response && r.response[id];
+      if (x && Array.isArray(x.forecast)) fc = x.forecast;
+    } catch (e) { fc = null; }
+    // Ältere Integrationen liefern die Vorhersage noch als Attribut
+    if (!fc) { const a = h.states[id] && h.states[id].attributes; if (a && Array.isArray(a.forecast)) fc = a.forecast; }
+    this._skyFc = fc; this._skyLoaded = fc ? Date.now() : Date.now() - 25 * 60 * 1000; this._skyLoading = false;
+    this._skyKey = null;
+    this._sky();
+  }
+  _sky(onlyIfChanged) {
+    const el = this._$('.sky'), h = this._hass, id = this._skyEnt();
+    if (!el || !h) return;
+    const ws = id && h.states[id];
+    if (!ws) { el.hidden = true; return; }
+    const sun = h.states['sun.sun'], sa = (sun && sun.attributes) || {};
+    const key = [ws.state, ws.attributes.temperature, sa.next_rising, sa.next_setting, this._skyFc && this._skyFc.length].join('|');
+    const now = new Date(), minute = now.getHours() * 60 + now.getMinutes();
+    if (onlyIfChanged && key === this._skyKey && this._skyMin === minute) return;
+    this._skyKey = key; this._skyMin = minute;
+    const tod = (v) => { const d = new Date(v); return v && !isNaN(d) ? d.getHours() + d.getMinutes() / 60 : null; };
+    const sr = tod(sa.next_rising), ss = tod(sa.next_setting);
+    const fmtT = (x) => { let hh = Math.floor(x), mm = Math.round((x - hh) * 60); if (mm === 60) { hh += 1; mm = 0; } return new Date(2000, 0, 1, hh, mm).toLocaleTimeString(WD.state.loc, { hour: '2-digit', minute: '2-digit' }); };
+    const COL = { sunny: '#ffc93d', 'clear-night': '#3a4a7a', partlycloudy: 'linear-gradient(#ffc93d 50%,#8d9ab3 50%)', cloudy: '#8d9ab3', fog: '#b7c0cf', rainy: '#4f86d9', pouring: '#2f63c4', snowy: '#cfe3ff', 'snowy-rainy': 'linear-gradient(#cfe3ff 50%,#4f86d9 50%)', lightning: '#8b6fd6', 'lightning-rainy': '#8b6fd6', hail: '#9fc3e8', windy: '#7f95b3', 'windy-variant': '#7f95b3', exceptional: '#e07a5f' };
+    const lab = (cnd) => { const k = 'sky.' + cnd, v = T(k); return v === k ? String(cnd || '') : v; };
+    const today = now.toDateString(), byHour = {};
+    (this._skyFc || []).forEach((f) => { const d = new Date(f.datetime); if (!isNaN(d) && d.toDateString() === today) byHour[d.getHours()] = f; });
+    const hasFc = Object.keys(byHour).length > 0;
+    const dark = (hr) => sr !== null && ss !== null && (hr + 1 <= sr || hr >= ss);
+    let segs = '';
+    for (let hr = 0; hr < 24; hr++) {
+      const f = byHour[hr], cur = hr === now.getHours();
+      let bg;
+      if (cur) bg = COL[ws.state] || 'rgba(var(--ov),.3)';
+      else if (f && f.condition) bg = COL[f.condition] || 'rgba(var(--ov),.25)';
+      else bg = dark(hr) ? 'rgba(var(--ov),.07)' : 'rgba(var(--ov),.2)';
+      const op = (cur || f) && dark(hr) ? 0.4 : 1;
+      segs += `<i style="background:${bg};opacity:${op}"></i>`;
+    }
+    this._$('.sky-bar').innerHTML = segs + `<span class="sky-now" style="left:${(minute / 14.4).toFixed(2)}%"></span>`;
+    const a = ws.attributes, tu = a.temperature_unit || (h.config && h.config.unit_system && h.config.unit_system.temperature) || '°C';
+    const tv = parseFloat(a.temperature);
+    this._$('.sky-l').textContent = lab(ws.state) + (isNaN(tv) ? '' : ` · ${nf(tv, 0)} ${tu}`);
+    this._$('.sky-r').textContent = sr !== null && ss !== null ? `↑ ${fmtT(sr)}   ↓ ${fmtT(ss)}` : '';
+    // Details: Bewölkung, Wind und die nächsten Stunden
+    const bits = [];
+    if (!isNaN(parseFloat(a.cloud_coverage))) bits.push(`${T('sky.cloud')} <b>${nf(parseFloat(a.cloud_coverage), 0)} %</b>`);
+    if (!isNaN(parseFloat(a.wind_speed))) bits.push(`${T('sky.wind')} <b>${nf(parseFloat(a.wind_speed), 0)} ${esc(a.wind_speed_unit || 'km/h')}</b>`);
+    const nextH = (this._skyFc || []).filter((f) => new Date(f.datetime) > new Date(now.getTime() - 36e5)).slice(0, 6);
+    const rows = nextH.map((f) => {
+      const d = new Date(f.datetime), pr = parseFloat(f.precipitation), p = pr > 0 ? ` · ${nf(pr, 1)} mm` : '';
+      return `<span><span class="ht">${d.toLocaleTimeString(WD.state.loc, { hour: '2-digit', minute: '2-digit' })}</span><span><b>${isNaN(parseFloat(f.temperature)) ? '' : nf(parseFloat(f.temperature), 0) + '°'}</b> ${esc(lab(f.condition))}${p}</span></span>`;
+    }).join('');
+    this._$('.sky-det').innerHTML = bits.join(' &nbsp;·&nbsp; ') + (rows ? `<div class="g">${rows}</div>` : (hasFc ? '' : `<div>${T('sky.nofc')}</div>`));
+    el.hidden = false;
+  }
+  // extra / alarm je Kachel (pv, pv2, grid, Speicher): Liste frei waehlbarer Werte und ein Alarm-Sensor
+  _xtList(v) { return (Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v).sort((a, b) => a - b).map((k) => v[k]) : [])).map((x) => (typeof x === 'string' ? { entity: x } : x)).filter((x) => x && typeof x.entity === 'string' && x.entity); }
+  _xtAlarm(a) { const x = typeof a === 'string' ? { entity: a } : a; return x && typeof x.entity === 'string' && x.entity ? x : null; }
+  _xtHtml(conf) {
+    if (!conf || !this._xtC) return '';
+    const rows = this._xtList(conf.extra).slice(0, 8), al = this._xtAlarm(conf.alarm);
+    if (!rows.length && !al) return '';
+    this._xtC.push({ rows, al });
+    return `<div class="xt" data-x="${this._xtC.length - 1}">${al ? `<div class="xa" data-e="${esc(al.entity)}" hidden><span class="xat"></span></div>` : ''}${rows.map((r, i) => `<div class="xr" data-i="${i}" data-e="${esc(r.entity)}"><span class="xl">${r.icon ? `<ha-icon icon="${esc(r.icon)}"></ha-icon>` : ''}<span class="xn">${esc(r.name || '')}</span></span><b class="xv">—</b></div>`).join('')}</div>`;
+  }
+  _xtUpdate() {
+    const h = this._hass;
+    if (!h || !this._xtC || !this._xtC.length) return;
+    this.shadowRoot.querySelectorAll('.xt').forEach((el) => {
+      const cfg = this._xtC[+el.dataset.x];
+      if (!cfg) return;
+      cfg.rows.forEach((r, i) => {
+        const row = el.querySelector(`.xr[data-i="${i}"]`), st = h.states && h.states[r.entity];
+        if (!row) return;
+        const nm = r.name || (st && st.attributes && st.attributes.friendly_name) || r.entity;
+        if (row.querySelector('.xn').textContent !== nm) row.querySelector('.xn').textContent = nm;
+        let txt = '—', warn = false;
+        if (st && !['unavailable', 'unknown', ''].includes(st.state)) {
+          const v = parseFloat(String(st.state).replace(',', '.'));
+          const unit = r.unit !== undefined ? String(r.unit) : (st.attributes && st.attributes.unit_of_measurement) || '';
+          if (!isNaN(v) && isFinite(st.state)) {
+            const d = r.decimals !== undefined && !isNaN(parseInt(r.decimals)) ? Math.max(0, Math.min(6, parseInt(r.decimals))) : (Number.isInteger(v) ? 0 : (Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2));
+            txt = nf(v, d) + (unit ? ' ' + unit : '');
+            const wa = parseFloat(r.warn_above), wb = parseFloat(r.warn_below);
+            warn = (!isNaN(wa) && v > wa) || (!isNaN(wb) && v < wb);
+          } else txt = String(st.state) + (r.unit ? ' ' + r.unit : '');
+        }
+        const b = row.querySelector('.xv');
+        if (b.textContent !== txt) b.textContent = txt;
+        row.classList.toggle('warn', warn);
+      });
+      const chip = el.querySelector('.xa'), node = el.closest('.node');
+      if (chip && cfg.al) {
+        const st = h.states && h.states[cfg.al.entity], s0 = st ? String(st.state) : '';
+        let on = false;
+        if (st && !['unavailable', 'unknown'].includes(s0)) {
+          const list = (v) => (Array.isArray(v) ? v : (v === undefined || v === null ? null : [v])), norm = (x) => String(x).toLowerCase();
+          const onL = list(cfg.al.on), okL = list(cfg.al.ok);
+          if (onL) on = onL.map(norm).includes(norm(s0));
+          else {
+            const ok = (okL || ['off', 'ok', 'normal', 'none', 'false', '0', '', 'idle']).map(norm);
+            const n = parseFloat(s0);
+            on = !ok.includes(norm(s0)) && !(okL === null && !isNaN(n) && n === 0);
+          }
+        }
+        const bin = ['on', 'off', 'true', 'false'].includes(s0.toLowerCase());
+        const name = cfg.al.name || T('xt.alarm');
+        chip.hidden = !on;
+        const txt = on && !bin ? `${name}: ${(st.attributes && st.attributes.friendly_name && cfg.al.show_name) || s0}` : name;
+        const at = chip.querySelector('.xat');
+        if (at.textContent !== txt) at.textContent = txt;
+        if (node) node.classList.toggle('alarm', on);
+      }
+    });
+  }
+  // why: Erklaerung in Klartext, regelbasiert. Wer verursacht den Netzbezug, warum liefert die Batterie nichts, warum kein Solar, warum Einspeisung
+  _skyLab(cnd) { const k = 'sky.' + cnd, v = T(k); return v === k ? String(cnd || '') : v; }
+  _whyOpen() {
+    const dl = this._$('.wdlg');
+    if (!dl || !this._wy) return;
+    this._whyRender();
+    if (dl.showModal) dl.showModal(); else dl.setAttribute('open', '');
+  }
+  _whyRender() {
+    const dl = this._$('.wdlg');
+    if (!dl) return;
+    const html = this._whyHtml();
+    if (dl.dataset.h !== html) { dl.dataset.h = html; dl.innerHTML = html; }
+  }
+  _whyHtml() {
+    const c = this._c, h = this._hass, y = this._wy, fW = (v) => this._fW(v), pct = (v) => Math.round(v);
+    if (!y || !h) return `<div class="d-hd"><span class="d-name">${T('why.none')}</span><button class="d-x" aria-label="${T('close')}">×</button></div>`;
+    const imp = y.gImp > TH, exp = !imp && y.gExp > TH;
+    const items = (this._wyItems || []).filter((x) => x.w >= 5).slice().sort((a, b) => b.w - a.w);
+    const known = (this._wyItems || []).reduce((a, x) => a + x.w, 0);
+    const rest = Math.max(0, y.home - known - y.bmChg);
+    const now = new Date(), clk = now.toLocaleTimeString(WD.state.loc, { hour: '2-digit', minute: '2-digit' });
+    const rowsHtml = (rows) => { const max = Math.max(1, ...rows.map((r) => r.w)); return rows.map((r) => `<div class="wr"><span class="wn">${esc(r.n)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="wbar"><i style="width:${Math.max(2, Math.round(r.w / max * 100))}%;background:${r.c}"></i></span><span class="wv">${fW(r.w)}</span></div>`).join(''); };
+    const col = (x, d) => `rgb(${rgb(x, d)})`;
+    const hint = (q, txt, cls) => (txt ? `<div class="wh${cls ? ' ' + cls : ''}"><b>${q}</b><span>${txt}</span></div>` : '');
+    let title, sub = '', rows = [], hints = '';
+    const bats = y.bats || [];
+    const sunSt = h.states['sun.sun'], night = sunSt && sunSt.state === 'below_horizon';
+    const wxId = this._skyEnt(), wx = wxId && h.states[wxId];
+    const fcT = c.pv && c.pv.forecast_tomorrow ? kwh(h, c.pv.forecast_tomorrow, rawUnits(c)) : null;
+    const fmtT = (v) => { const d = new Date(v); return isNaN(d) ? '' : d.toLocaleTimeString(WD.state.loc, { hour: '2-digit', minute: '2-digit' }); };
+    const consRows = () => {
+      const r = items.map((x) => ({ n: x.n, w: x.w, c: col(x.c, '167,139,250'), sub: x.top ? T('why.top', { n: x.top.n, w: fW(x.top.w) }) : '' }));
+      if (y.bmChg > TH) r.push({ n: T('why.bm'), w: y.bmChg, c: `rgb(${PAL.chg})` });
+      if (rest > TH) r.push({ n: T('flow.rest'), w: rest, c: `rgb(${PAL.mut})` });
+      return r;
+    };
+    const coverParts = (withGrid) => {
+      const parts = [];
+      if (y.pvHome > TH) parts.push(`${T('why.solar')} ${fW(y.pvHome)}`);
+      if (y.bDis > TH) parts.push(`${T('why.batt')} ${fW(y.bDis)}`);
+      if (withGrid || y.gImp > 0) parts.push(`${T('why.grid')} ${fW(y.gImp)}`);
+      return parts.join(' · ');
+    };
+    if (imp) {
+      title = T('why.imp', { w: fW(y.gImp) });
+      rows = consRows();
+      sub = T('why.cover', { home: fW(y.home), parts: coverParts(true) });
+      // Batterie
+      if (bats.length) {
+        const b = bats.find((x) => x.soc !== null) || bats[0];
+        let t = '';
+        if (y.bDis > TH && b) t = T('why.bat.dis', { w: fW(y.bDis) });
+        else if (b && b.soc !== null && b.soc <= b.reserve + 1) t = T('why.bat.empty', { soc: pct(b.soc), res: pct(b.reserve) });
+        else if (b && b.soc !== null) t = T('why.bat.idle', { soc: pct(b.soc) });
+        hints += hint(T('why.q.bat'), t);
+      }
+      // Solar
+      if (c.pv) {
+        let t = '';
+        if (night) {
+          const nr = sunSt.attributes && sunSt.attributes.next_rising;
+          t = T('why.sun.night', { t: fmtT(nr) }) + (fcT !== null ? T('why.sun.fc', { kwh: nf(fcT, 0) }) : '');
+        } else if (y.pv <= 30) {
+          t = (y.pv <= TH ? T('why.sun.zero') : T('why.sun.low', { w: fW(y.pv) })) + (wx ? T('why.sun.wx', { cnd: this._skyLab(wx.state) }) : '');
+        } else if (y.pvHome < y.home) {
+          t = T('why.sun.part', { pv: fW(y.pv), home: fW(y.home) }) + (wx ? T('why.sun.wx', { cnd: this._skyLab(wx.state) }) : '');
+        }
+        hints += hint(T('why.q.sun'), t);
+      }
+      if (rest >= 150 && y.home > 0 && rest / y.home >= 0.25) hints += hint(T('why.q.hint'), T('why.rest', { w: fW(rest) }));
+    } else if (exp) {
+      title = T('why.exp', { w: fW(y.gExp) });
+      const chg = bats.reduce((a, x) => a + Math.max(0, x.p || 0), 0);
+      rows = [{ n: T('why.row.pv'), w: y.pv, c: `rgb(${PAL.pv})` }, { n: T('why.row.home'), w: y.home, c: `rgb(${PAL.home})` }];
+      if (chg > TH) rows.push({ n: T('why.row.chg'), w: chg, c: `rgb(${PAL.chg})` });
+      rows.push({ n: T('why.row.exp'), w: y.gExp, c: `rgb(${PAL.exp})` });
+      sub = `${T('why.solar')} ${fW(y.pv)} − ${T('why.row.home')} ${fW(y.home)}${chg > TH ? ` − ${T('why.row.chg')} ${fW(chg)}` : ''} = ${T('why.row.exp')} ${fW(y.gExp)}`;
+      if (bats.length) {
+        const b = bats.find((x) => x.soc !== null) || bats[0];
+        let t = '';
+        if (chg > TH) t = T('why.charging', { w: fW(chg) });
+        else if (b && b.soc !== null && b.soc >= b.maxSoc - 0.5) t = T('why.full', { soc: pct(b.soc) });
+        else if (b && b.soc !== null) t = T('why.notfull', { soc: pct(b.soc) });
+        hints += hint(T('why.q.feed'), t);
+      }
+      const sug = ((c.surplus && c.surplus.suggestions) || []).filter((x) => x && x.name && x.power && x.power <= y.gExp);
+      if (sug.length) hints += hint(T('why.q.tip'), T('why.tip.sug', { w: fW(y.gExp), names: sug.map((x) => esc(x.name)).join(' / ') }), 'tip');
+    } else {
+      title = T('why.bal');
+      sub = T('why.cover', { home: fW(y.home), parts: coverParts(false) || T('why.solar') + ' ' + fW(y.home) });
+      rows = consRows();
+      const b0 = bats.find((x) => x.soc !== null) || bats[0], chgB = bats.reduce((a, x) => a + Math.max(0, x.p || 0), 0);
+      const pvN = fW(y.pvHome), batN = fW(y.bDis);
+      let tb = '';
+      if (y.pvHome > TH && y.bDis > TH) tb = T('why.bal.both', { pv: pvN, bat: batN, home: fW(y.home) });
+      else if (y.pvHome > TH) tb = T('why.bal.sun', { pv: pvN, home: fW(y.home) });
+      else if (y.bDis > TH) tb = T('why.bal.bat', { soc: b0 && b0.soc !== null ? pct(b0.soc) : '–', bat: batN, home: fW(y.home) });
+      else tb = T('why.bal.low', { home: fW(y.home) });
+      hints += hint(T('why.q.bal'), tb);
+      if (y.pvHome > TH && y.bDis > TH) hints += hint(T('why.q.baldis'), T('why.bal.dis', { home: fW(y.home), bat: batN, soc: b0 && b0.soc !== null ? pct(b0.soc) : '–' }));
+      if (chgB > TH) hints += hint(T('why.q.balchg'), T('why.bal.chg', { w: fW(chgB) }));
+      if (rest >= 150 && y.home > 0 && rest / y.home >= 0.25) hints += hint(T('why.q.hint'), T('why.rest', { w: fW(rest) }));
+    }
+    return `<div class="d-hd"><span class="d-name">${esc(title)}</span><button class="d-x" aria-label="${T('close')}">×</button></div><div class="wb"><div class="wsub">${esc(T('why.asof', { t: clk }))}${sub ? ' · ' + esc(sub) : ''}</div>${rowsHtml(rows)}${hints}</div>`;
+  }
+  _wasteChip() {
+    const el = this._$('.wst'), W = this._waste, w = this._c.waste;
+    if (!el || !W) return;
+    const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const sw = String(w.day_switch || '10:00').split(':').map(Number), rf = String(w.remind_from || '16:00').split(':').map(Number);
+    const todayEv = mins < sw[0] * 60 + (sw[1] || 0) ? W.filter((x) => +x.date === +today) : [];
+    const tomorrowEv = W.filter((x) => +x.date === today.getTime() + 864e5 || +x.date === +new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
+    const list = todayEv.length ? todayEv : tomorrowEv;
+    if (!list.length) { el.classList.remove('show', 'urgent'); return; }
+    const names = [...new Set(list.map((x) => x.type.name))].join(' + ');
+    el.style.setProperty('--wc', rgb(list[0].type.color, PAL.mut));
+    el.innerHTML = `🗑 ${todayEv.length ? T('waste.today') : T('waste.tomorrow')}: <b>${esc(names)}</b>`;
+    el.classList.add('show');
+    el.classList.toggle('urgent', !!todayEv.length || mins >= rf[0] * 60 + (rf[1] || 0));
+    if (w.nav_path) el.dataset.nav = w.nav_path;
+  }
+  getCardSize() { return 9; }
+  getGridOptions() { return { columns: 'full', min_columns: 6 }; }
+  connectedCallback() {
+    if (!this._ro && window.ResizeObserver) this._ro = new ResizeObserver(() => this._schedLayout());
+    this._observe();
+    if (!this._onResize) { this._onResize = () => this._schedLayout(); }
+    window.addEventListener('resize', this._onResize);
+    if (!this._kaSub) this._kaSub = () => this._kaRender();
+    KA.subs.add(this._kaSub);
+    this._kaRender();
+    this._clockT = setInterval(() => { this._clock(); this._wasteChip(); this._sky(); }, 15000);
+    this._clock();
+    this._schedLayout();
+  }
+  disconnectedCallback() {
+    clearTimeout(this._hT); this._hT = null;
+    if (this._ro) this._ro.disconnect();
+    window.removeEventListener('resize', this._onResize);
+    if (this._kaSub) KA.subs.delete(this._kaSub);
+    clearInterval(this._clockT);
+    clearTimeout(this._fitT);
+  }
+  _observe() {
+    if (!this._ro || !this.shadowRoot) return;
+    this._ro.disconnect();
+    this.shadowRoot.querySelectorAll('.stage,.node,.hub,.cons,.grp,.banner,.sky').forEach((el) => this._ro.observe(el));
+  }
+  _$(s) { return this.shadowRoot.querySelector(s); }
+  // keep_awake: 'auto' (nur im Silk-Browser des Echo Show, Standard) | true | false
+  _kaRender() {
+    const mode = this._c ? this._c.keep_awake : 'auto';
+    const want = mode === true || ((mode === undefined || mode === 'auto') && KA.silk);
+    if (want) KA.enabled = true;
+    const el = this._$('.ka');
+    if (!el) return;
+    el.classList.toggle('show', want);
+    el.classList.toggle('on', want && KA.active);
+    el.classList.toggle('wait', want && !KA.active);
+    el.textContent = KA.active ? T('ka.on') : T('ka.wait');
+  }
+  _clock() {
+    const el = this._$('.clock');
+    if (el && this._c.show_clock !== false) el.textContent = new Date().toLocaleTimeString(WD.state.loc, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Eigene Farben (colors) gelten nur waehrend _build und _update dieser Karte, danach steht die Standardpalette wieder
+  _withPal(fn) {
+    if (!this._pal) return fn();
+    const keep = Object.assign({}, PAL);
+    Object.assign(PAL, this._pal);
+    try { return fn(); } finally { Object.assign(PAL, keep); }
+  }
+  _build() { return this._withPal(() => this._build0()); }
+  _update() { return this._withPal(() => { this._update0(); this._xtUpdate(); const w = this._$('.wdlg'); if (w && w.open) this._whyRender(); }); }
+  _build0() {
+    this._xtC = [];
+    const c = this._c;
+    this._bl = WD.state.lang;
+    // Nach dem Laden der Schrift und nach der Anlaufzeit einmal sicher neu einpassen, auch wenn der Maßstab gerade gehalten wird
+    const refit = () => { this._forceFit = true; this._schedLayout(); };
+    clearTimeout(this._fitT);
+    this._fitT = setTimeout(refit, 2500);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+    const node = (k, cls, icon, label, color, ent, extra = '', conf = null) => `
+      <div class="node ${cls}" data-k="${k}" data-e="${esc(ent)}" style="--c:${color}">
+        ${this._s3d ? `<div class="o3d" data-o="${k}"></div>` : ''}<div class="n-top"><span class="ico"><ha-icon icon="${esc(icon)}"></ha-icon></span><span class="lbl">${esc(label)}</span></div>
+        <div class="val"><span class="num">—</span><span class="unit"></span></div>
+        <div class="tag"></div>${extra}<div class="sub"></div>${this._xtHtml(conf)}
+      </div>`;
+    const links = [];
+    let nodes = '';
+    if (c.pv) { nodes += node('pv', 'pv', c.pv.icon || 'mdi:solar-power-variant', c.pv.name || T('flow.pv'), PAL.pv, c.pv.entity, '', c.pv); if (!this._via) links.push('pv'); }
+    const hasPv2 = !!(c.pv2 && c.pv2.entity);
+    if (hasPv2) { nodes += node('pv2', 'pv2', c.pv2.icon || 'mdi:solar-panel', c.pv2.name || T('flow.pv2'), PAL.pv, c.pv2.entity, '', c.pv2); if (this._via2 < 0) links.push('pv2'); }
+    if (c.grid) { nodes += node('grid', 'grid', c.grid.icon || 'mdi:transmission-tower', c.grid.name || T('flow.grid'), PAL.imp, c.grid.entity, c.why ? `<span class="why" role="button" tabindex="0" aria-label="${esc(T('why.imp', { w: '' }).replace(/\s+/g, ' ').trim())}">?</span>` : '', c.grid); links.push('grid'); }
+    if (c.batteries.length) {
+      const nB = c.batteries.length;
+      const bHtml = c.batteries.map((b, i) => node(this._bk(i), 'bat', b.icon || 'mdi:home-battery-outline', b.name || (T('flow.battery') + (nB > 1 ? ' ' + (i + 1) : '')), PAL.bat, (b.tap === 'soc' && b.soc) || b.power || b.power_charge || b.power_discharge,
+        // Klick auf Balken und Prozentzahl öffnet den Verlauf des Ladestands, der Rest der Kachel den der Leistung
+        `<div class="socbox"${b.soc ? ` data-e="${esc(b.soc)}"` : ''}><div class="soc"><div class="soc-fill"></div><div class="soc-low"></div><div class="soc-high"></div></div><div class="soc-row"><span>${T('flow.soc')}</span><b class="soc-txt">—</b></div></div>${b.temp ? `<div class="socbox" data-e="${esc(b.temp)}"><div class="soc-row"><span>${T('flow.temp')}</span><b class="temp-txt">—</b></div></div>` : ''}`, b)).join('');
+      nodes += nB > 1 ? `<div class="bats">${bHtml}</div>` : bHtml;
+      c.batteries.forEach((b, i) => links.push(this._bk(i)));
+      if (this._via) links.push('pvbat');
+      if (this._via2 >= 0) links.push(`r:pv2:${this._bk(this._via2)}`);
+      // 3D: echte Wege zwischen den Geräten, nicht über das Haus (Speicher hinter dem Zähler hängen am Haus)
+      if (this._s3d) c.batteries.forEach((b, i) => {
+        if (b.behind_meter === true) return;
+        const k = this._bk(i);
+        if (c.grid) links.push(`r:${k}:grid`);
+        if (this._via && i === 0) return;
+        if (c.pv) links.push(`r:pv:${k}`);
+        if (c.grid) links.push(`r:grid:${k}`);
+      });
+    }
+    if (this._s3d && c.grid) { if (c.pv) links.push('r:pv:grid'); if (hasPv2) links.push('r:pv2:grid'); }
+    // groups_columns: Gruppen pro Reihe (Standard: alle in einer Reihe). Stehen Gruppen untereinander,
+    // liefen einzelne Linien durch die oberen Gruppen; ohne ausdrückliches groups_lines gilt dann die Sammel-Linie.
+    const gc = Math.max(0, parseInt(c.groups_columns, 10) || 0);
+    this._gc = gc;
+    const nGrp = (c.consumer_groups || []).length + (c.rest !== false && !c.hide_rest && (c.consumer_groups || []).length ? 1 : 0);
+    // In der Kurzansicht (compact) brechen Gruppen und Geräte frei um: ebenfalls Sammel-Linie, sofern groups_lines nicht gesetzt ist
+    const cmp = !!this._cmp;
+    const sam = (c.groups_lines === 'sammel' || (!c.groups_lines && ((gc > 0 && gc < nGrp) || cmp))) &&(c.consumers.length > 0 || (c.consumer_groups || []).length > 0);
+    this._sam = sam;
+    if (sam) links.push('bundle');
+    const cons = c.consumers.map((x, i) => {
+      if (x.entity && !sam) links.push('c' + i);
+      return `<div class="cons${x.size === 'gross' || x.size === 'big' ? ' big' : (x.size === 'mittel' || x.size === 'mid' ? ' mid' : '')}" data-k="c${i}" data-e="${esc(x.entity || x.secondary)}" style="--c:${rgb(x.color, '167,139,250')}">
+        ${x.image ? `<span class="ico logo"><img src="${esc(x.image)}" alt=""></span>` : `<span class="ico"><ha-icon icon="${esc(x.icon || 'mdi:power-plug')}"></ha-icon></span>`}
+        <div class="c-txt"><span class="lbl">${esc(x.name || x.entity)}</span><span class="val"><span class="num">—</span><span class="unit"></span></span></div>
+        <span class="c-sec"></span></div>`;
+    }).join('');
+    // Kachel "Nicht erfasst" auch bei einzelnen Verbrauchern ohne Gruppen, aber nur wenn hide_rest: false ausdrücklich gesetzt ist (#34)
+    const restC = c.consumers.length > 0 && !(c.consumer_groups || []).length && c.hide_rest === false && c.rest !== false;
+    if (restC && !sam) links.push('crest');
+    const consRest = restC ? `<div class="cons rest" data-k="crest" style="--c:${PAL.mut}">
+        <span class="ico"><ha-icon icon="mdi:help-circle-outline"></ha-icon></span>
+        <div class="c-txt"><span class="lbl">${esc((c.rest && c.rest.name) || T('flow.rest'))}</span><span class="val"><span class="num">—</span><span class="unit"></span></span></div></div>` : '';
+    const G = c.consumer_groups;
+    let grps = '';
+    if (G.length) {
+      grps = G.map((g, i) => {
+        if (!sam) links.push('g' + i);
+        return `<div class="grp" data-k="g${i}" style="--c:${rgb(g.color, '167,139,250')}">
+          <div class="g-hd">${g.image ? `<span class="ico logo"><img src="${esc(g.image)}" alt=""></span>` : `<span class="ico"><ha-icon icon="${esc(g.icon || 'mdi:door')}"></ha-icon></span>`}<span class="lbl">${esc(g.name)}</span></div>
+          <div class="val"><span class="num">—</span><span class="unit"></span></div>
+          <div class="its">${(g.items || []).map((x, j) => `<div class="it" data-i="${i}-${j}" data-e="${esc(x.entity || x.secondary)}"><i></i><span class="in">${esc(x.name || x.entity)}</span><b></b></div>`).join('')}</div>
+        </div>`;
+      }).join('');
+      const showRest = c.rest !== false && !c.hide_rest;
+      if (showRest) {
+        if (!sam) links.push('grest');
+        grps += `<div class="grp rest" data-k="grest" style="--c:${PAL.mut}">
+          <div class="g-hd"><span class="ico"><ha-icon icon="mdi:help-circle-outline"></ha-icon></span><span class="lbl">${esc((c.rest && c.rest.name) || T('flow.rest'))}</span></div>
+          <div class="val"><span class="num">—</span><span class="unit"></span></div>
+          <div class="its"><div class="it"><span class="in rest-t"></span></div></div>
+        </div>`;
+      }
+      const nCol = G.length + (showRest ? 1 : 0);
+      grps = `<div class="groups${gc ? ' gc-fixed' : ''}" style="grid-template-columns:repeat(${gc ? Math.min(gc, nCol) : nCol},minmax(0,1fr))">${grps}</div>`;
+    }
+    const d = (k, lbl, color, e) => `<div class="stat${e ? ' fc' : ''}" data-s="${k}"${e ? ` data-e="${esc(e)}" role="button"` : ''} style="--c:${color}"><span><i></i>${lbl}</span><b>—</b></div>`;
+    let stats = '';
+    if ((c.pv && c.pv.daily) || (c.pv2 && c.pv2.daily)) stats += d('pv', T('stat.pv'), PAL.pv);
+    // PV-Prognose für morgen und übermorgen (optional, z. B. Forecast.Solar oder Solcast). Antippen öffnet den Verlauf. Wunsch aus #22
+    if (c.pv && c.pv.forecast_tomorrow) stats += d('fc1', T('stat.fc1'), PAL.pv, c.pv.forecast_tomorrow);
+    if (c.pv && c.pv.forecast_day_after) stats += d('fc2', T('stat.fc2'), PAL.pv, c.pv.forecast_day_after);
+    if (c.grid && c.grid.daily_import) stats += d('imp', T('stat.imp'), PAL.imp);
+    if (c.grid && c.grid.daily_export) stats += d('exp', T('stat.exp'), PAL.exp);
+    if (c.batteries.some((b) => b.daily_charge || b.daily_discharge)) stats += d('bat', T('stat.bat'), PAL.bat);
+    // Hausverbrauch heute: eigener Sensor (home.daily) oder berechnet wie die Autarkie
+    if ((c.home && c.home.daily) || (((c.pv && c.pv.daily) || (c.pv2 && c.pv2.daily)) && c.grid && c.grid.daily_import)) stats += d('home', T('stat.home'), PAL.home);
+    stats += d('aut', T('stat.aut'), PAL.home);
+
+    this.shadowRoot.innerHTML = `<style>${CSS}</style>
+    <ha-card><div class="wrap${this._mode ? ' ' + this._mode : ''}${cmp ? ' cmp' : ''}${this._s3d ? ' s3d' : ''}${sam ? ' sam-on' : ''}${c.text_size === 'gross' ? ' ts-l' : c.text_size === 'sehr_gross' ? ' ts-xl' : ((this._lsn || this._tsn) > 1.2 ? ' ts-l' : '')}${c.animations === 'always' || c.animations === 'immer' ? ' anim-on' : ''}"${(this._s3d && WD.D3.roof(c.roof_color)) || this._tsn || this._lsn || this._palSet ? ` style="${(this._s3d && WD.D3.roof(c.roof_color)) || ''}${this._lsn || this._tsn ? `--ts:${this._lsn || this._tsn};` : ''}${this._tsn ? `--vs:${this._tsn};` : ''}${this._palSet ? `--pv:${PAL.pv};--imp:${PAL.imp};--exp:${PAL.exp};--bat:${PAL.bat};--home:${PAL.home};` : ''}"` : ''}>
+      <header>
+        <div class="title"><span class="live"></span>${esc(c.title || T('flow.title'))}<span class="clock"></span></div>
+        <div class="pill ka"></div>
+        <div class="pill wst"></div>
+        <div class="pill">${T('pill.aut')}<b data-p="aut">—</b></div>
+        <div class="pill">${T('pill.self')}<b data-p="self">—</b></div>
+        ${c.nav_path ? `<div class="navbtn" data-nav="${esc(c.nav_path)}">${esc(c.nav_label || T('flow.next'))}</div>` : ''}
+      </header>
+      ${c.weather ? '<div class="sky" role="button" tabindex="0" hidden><div class="sky-bar"></div><div class="sky-row"><span class="sky-l"></span><span class="sky-r"></span></div><div class="sky-det"></div></div>' : ''}
+      <div class="banner"><div class="b-ico"><ha-icon icon="mdi:white-balance-sunny"></ha-icon></div><div class="b-txt"><span class="b-title"></span><span class="b-sub"></span></div><div class="b-chips"></div></div>
+      <div class="stage">
+        <svg class="links">${links.map((k) => `<g class="link" data-l="${k}"><path class="track"/><path class="glow"/><path class="flow"/></g>`).join('')}</svg>
+        <div class="layout${hasPv2 ? ' has-pv2' : ''}${this._via ? ' via-bat' : ''}">
+          ${nodes}
+          <div class="hub-wrap">
+            <div class="hub" data-e="${esc(c.home && c.home.entity)}">
+              ${this._s3d ? '<div class="o3d" data-o="home"></div>' : ''}<svg viewBox="0 0 120 120">
+                <circle class="orbit" cx="60" cy="60" r="58.5"/>
+                <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                <circle class="seg" data-g="pv" cx="60" cy="60" r="52" pathLength="100" style="color:rgb(${PAL.pv})"/>
+                <circle class="seg" data-g="bat" cx="60" cy="60" r="52" pathLength="100" style="color:rgb(${PAL.dis})"/>
+                <circle class="seg" data-g="grid" cx="60" cy="60" r="52" pathLength="100" style="color:rgb(${PAL.imp})"/>
+              </svg>
+              <div class="core">
+                <ha-icon icon="mdi:home-lightning-bolt-outline"></ha-icon>
+                <div class="val"><span class="num">—</span><span class="unit"></span></div>
+                <div class="hub-lbl">${esc((c.home && c.home.name) || T('flow.home'))}</div>
+              </div>
+            </div>
+            <div class="mix">
+              <span style="--c:${PAL.pv}"><i></i>${T('mix.pv')}<b data-m="pv">—</b></span>
+              ${c.battery ? `<span style="--c:${PAL.dis}"><i></i>${T('mix.bat')}<b data-m="bat">—</b></span>` : ''}
+              <span style="--c:${PAL.imp}"><i></i>${T('mix.grid')}<b data-m="grid">—</b></span>
+            </div>
+          </div>
+        </div>
+        ${sam ? `<div class="sambox"><div class="sam" data-k="bundle"><span class="sam-t">${T('flow.cons_total')}</span><b class="sam-w">—</b></div>` : ''}${cons ? `<div class="consumers${c.consumers.some((x) => x.size === 'mittel' || x.size === 'mid') ? ' hm' : ''}">${cons}${consRest}</div>` : ''}
+        ${grps}${sam ? '</div>' : ''}
+      </div>
+      <footer>${stats}</footer>
+    </div></ha-card>${cmp ? '<dialog class="gdlg"></dialog>' : ''}${c.why ? '<dialog class="wdlg"></dialog>' : ''}`;
+
+    this._links = links.map((k) => ({ k, g: this._$(`g[data-l="${k}"]`), el: this._$(`[data-k="${k}"]`) }));
+    this._3k = {};
+    this._dlg = null;
+    const dl = this._$('.gdlg');
+    if (dl) dl.addEventListener('close', () => { this._dlg = null; });
+    // Nur einmal registrieren: _build läuft bei jeder Konfigurationsänderung erneut
+    if (!this._clk) {
+      this._clk = true;
+      this.shadowRoot.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.why')) { e.preventDefault(); this._whyOpen(); } });
+      this.shadowRoot.addEventListener('click', (e) => {
+        const dlg = this._$('.gdlg');
+        if (dlg && dlg.open && (e.target === dlg || e.target.closest('.d-x'))) { dlg.close(); return; }
+        const wy = e.target.closest('.why');
+        if (wy) { e.stopPropagation(); this._whyOpen(); return; }
+        const wdl = this._$('.wdlg');
+        if (wdl && wdl.open && (e.target === wdl || e.target.closest('.d-x'))) { wdl.close(); return; }
+        const sk = e.target.closest('.sky');
+        if (sk) { sk.classList.toggle('open'); return; }
+        const nv = e.target.closest('[data-nav]');
+        if (nv) { haNavigate(nv.dataset.nav); return; }
+        const t = e.target.closest('[data-e]');
+        if (t && t.dataset.e) {
+          // Eigenes Fenster liegt ganz oben: vor dem Verlauf von Home Assistant schließen
+          if (dlg && dlg.open) dlg.close();
+          this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: t.dataset.e }, bubbles: true, composed: true }));
+          return;
+        }
+        const g = this._cmp && e.target.closest('.grp[data-k^="g"]:not(.rest)');
+        if (g) this._openGroup(+g.dataset.k.slice(1));
+      });
+    }
+    this._tw = {};
+    this._observe();
+    this._clock();
+    this._kaRender();
+    this._schedLayout();
+  }
+
+
+  // Auto-Fit: skaliert den Karteninhalt so, dass er in die sichtbare Bildschirmhöhe passt
+  _fit() {
+    const wrap = this._$('.wrap'), card = this._$('ha-card');
+    if (!wrap || !card) return 1;
+    // Banner fährt ein oder aus, Zahlen zählen hoch: Maßstab halten, danach einmal neu anpassen (sonst zuckt die Karte bei jedem Frame).
+    // Laufen ständig neue Werte ein, höchstens alle 5 Sekunden neu anpassen.
+    // Nicht halten, wenn sich Breite oder verfügbare Höhe geändert haben oder die Schrift gerade fertig geladen ist,
+    // sonst bleibt ein falscher erster Maßstab stehen (iPad: erst klein links, dann groß).
+    const now = Date.now();
+    const top0 = Math.max(0, this.getBoundingClientRect().top);
+    const avail0 = window.innerHeight - top0 - (this._c.fit_margin === undefined ? 8 : this._c.fit_margin);
+    const settled = !this._forceFit && card.clientWidth === this._fitW && avail0 === this._fitA;
+    this._forceFit = false;
+    if (this._scale && settled && now < (this._bUntil || 0)) {
+      if (now - (this._holdSince || now) < 5000) return this._scale;
+      this._holdSince = now;
+    }
+    const prev = this._scale;
+    wrap.style.transform = ''; wrap.style.width = ''; card.style.height = '';
+    if (this._c.fit_screen === false) return (this._scale = 1);
+    const top = Math.max(0, this.getBoundingClientRect().top);
+    const avail = window.innerHeight - top - (this._c.fit_margin === undefined ? 8 : this._c.fit_margin);
+    let s = 1;
+    const cw = card.clientWidth;
+    if (avail > 200 && cw && wrap.offsetHeight > avail) {
+      s = Math.max(0.55, avail / wrap.offsetHeight);
+      wrap.style.width = (cw / s) + 'px';
+      s = Math.max(0.55, Math.min(1, avail / wrap.offsetHeight));
+    }
+    // Kleine Abweichungen ignorieren: Jede Breitenänderung bricht Kacheln anders um und löst sonst die nächste Anpassung aus.
+    // Vergrößern erst ab 4 %, Verkleinern ab 1,5 % (dann läuft wirklich etwas über).
+    if (prev && cw === this._fitW && avail === this._fitA && ((s > prev && s - prev < 0.04) || (s < prev && prev - s < 0.015))) s = prev;
+    if (s < 1) {
+      wrap.style.width = (cw / s) + 'px';
+      wrap.style.transform = 'scale(' + s + ')';
+      card.style.height = Math.ceil(wrap.offsetHeight * s) + 'px';
+    } else wrap.style.width = '';
+    this._fitW = cw;
+    this._fitA = avail;
+    return (this._scale = s);
+  }
+
+  // Maßstab für ms Millisekunden festhalten und danach einmal neu einpassen
+  _holdFit(ms) {
+    const now = Date.now();
+    if (now >= (this._bUntil || 0)) this._holdSince = now;
+    this._bUntil = Math.max(this._bUntil || 0, now + ms);
+    clearTimeout(this._bFit);
+    this._bFit = setTimeout(() => this._schedLayout(), this._bUntil - now + 20);
+  }
+  _schedLayout() {
+    if (this._lr) return;
+    this._lr = requestAnimationFrame(() => { this._lr = null; this._layout(); });
+  }
+  // 3D: Das Bild steht nur neben dem Text, wenn dort genug Platz bleibt, sonst darüber. Gemessen wird in natürlicher Größe und nur bei neuer Breite, sonst springt die Karte
+  _tall3d(wrap, w, mode) {
+    const key = `${w}|${mode}`;
+    if (wrap._d3Key === key) return;
+    wrap._d3Key = key;
+    const sw = wrap.style.width;
+    wrap.style.width = '';
+    const nodes = [...wrap.querySelectorAll('.node[data-k]')];
+    nodes.forEach((n) => n.classList.remove('d3tall'));
+    const ts = parseFloat(getComputedStyle(wrap).getPropertyValue('--ts')) || 1;
+    const need = (this._cmp ? 185 : mode === 'wide' ? 320 : mode === 'narrow' ? 280 : 300) + (ts - 1) * 120;
+    nodes.map((n) => n.offsetWidth).forEach((nw, i) => nodes[i].classList.toggle('d3tall', nw > 0 && nw < need));
+    wrap.style.width = sw;
+    this._forceFit = true;
+  }
+  _layout() {
+    // 3D: Die Linien enden am Ring um das Haus, nicht an der ganzen Hub-Fläche mit der Zahl
+    const wrap = this._$('.wrap'), st = this._$('.stage'), hub = this._$(this._s3d ? '.hub .o3d' : '.hub');
+    if (!st || !hub) return;
+    const w = this.getBoundingClientRect().width;
+    if (!w) return;
+    const mode = w >= 900 ? 'wide' : w < 600 ? 'narrow' : '';
+    if (mode !== this._mode) {
+      wrap.classList.remove('wide', 'narrow');
+      if (mode) wrap.classList.add(mode);
+      this._mode = mode;
+    }
+    // compact: true/immer | auto (nur auf schmalen Bildschirmen, z. B. Handy) | false/aus (Standard)
+    const cm = this._c.compact, cmp = cm === true || cm === 'immer' || (cm === 'auto' && mode === 'narrow');
+    if (cmp !== !!this._cmp) {
+      this._cmp = cmp;
+      this._build();
+      if (this._hass) this._update();
+      return;
+    }
+    if (this._s3d) this._tall3d(wrap, w, mode);
+    const k0 = this._fit();
+    const sr = st.getBoundingClientRect();
+    const hr = hub.getBoundingClientRect();
+    const cx = (hr.left + hr.width / 2 - sr.left) / k0;
+    // 3D: Der Ring liegt als Ellipse am Boden, sein Mittelpunkt sitzt am unteren Rand der Zeichnung (Maße aus WD.D3.ring)
+    const rs = this._s3d ? hr.width / WD.D3.ring.w / k0 : 0;
+    const cy = this._s3d ? (hr.bottom - sr.top) / k0 - WD.D3.ring.bottom * rs : (hr.top + hr.height / 2 - sr.top) / k0;
+    const R = this._s3d ? WD.D3.ring.rx * rs : hr.width * 0.465 / k0;
+    const Ry = this._s3d ? WD.D3.ring.ry * rs : R;
+    // 3D: Die Kacheln neben dem Haus reichen unter den Ring, Linien zu den Verbrauchern müssen unter ihnen durch
+    const walls = this._s3d ? [...this.shadowRoot.querySelectorAll('[data-k]')].filter((e) => /^(pv2?|grid|bat\d*)$/.test(e.dataset.k) && e.offsetParent).map((e) => e.getBoundingClientRect()).map((b) => ({ l: (b.left - sr.left) / k0, r: (b.right - sr.left) / k0, b: (b.bottom - sr.top) / k0 })) : [];
+    for (const L of this._links) {
+      if (L.k === 'pvbat') {
+        // Solar -> Speicher: gerade Verbindung zwischen den beiden Kacheln (untereinander oder nebeneinander)
+        const a = this._$('[data-k="pv"]'), b = this._$('[data-k="bat"]');
+        const set = (d) => L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', d));
+        if (!a || !b || !a.offsetParent || !b.offsetParent) { set(''); continue; }
+        const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+        const A = { t: (ra.top - sr.top) / k0, b: (ra.bottom - sr.top) / k0, l: (ra.left - sr.left) / k0, r: (ra.right - sr.left) / k0 };
+        const B = { t: (rb.top - sr.top) / k0, b: (rb.bottom - sr.top) / k0, l: (rb.left - sr.left) / k0, r: (rb.right - sr.left) / k0 };
+        const ox = Math.min(A.r, B.r) - Math.max(A.l, B.l);
+        let d;
+        if (B.t >= A.b - 2 && ox > 20) { const x = (Math.max(A.l, B.l) + Math.min(A.r, B.r)) / 2; d = `M${x.toFixed(1)},${A.b.toFixed(1)} L${x.toFixed(1)},${B.t.toFixed(1)}`; }
+        else if (B.l >= A.r - 2) { const y = Math.max(B.t + 12, Math.min(B.b - 12, (A.t + A.b) / 2)); d = `M${A.r.toFixed(1)},${y.toFixed(1)} L${B.l.toFixed(1)},${y.toFixed(1)}`; }
+        else { set(''); continue; }
+        set(d);
+        continue;
+      }
+      if (L.k.startsWith('r:')) {
+        const [, from, to] = L.k.split(':');
+        const ea = this._$(`[data-k="${from}"]`), eb = this._$(`[data-k="${to}"]`);
+        const set = (d) => L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', d));
+        if (!ea || !eb || !ea.offsetParent || !eb.offsetParent) { set(''); continue; }
+        const box = (e) => { const b = e.getBoundingClientRect(); return { t: (b.top - sr.top) / k0, b: (b.bottom - sr.top) / k0, l: (b.left - sr.left) / k0, r: (b.right - sr.left) / k0 }; };
+        const A = box(ea), B = box(eb), f = (n) => n.toFixed(1);
+        const ox = Math.min(A.r, B.r) - Math.max(A.l, B.l), oy = Math.min(A.b, B.b) - Math.max(A.t, B.t);
+        // Zwei Linien zum selben Speicher enden versetzt
+        const shift = from === 'pv' ? -9 : from === 'grid' ? 9 : 0;
+        if (ox > 20 && B.t >= A.b - 2) { const x = (Math.max(A.l, B.l) + Math.min(A.r, B.r)) / 2 + shift; set(`M${f(x)},${f(A.b)} L${f(x)},${f(B.t)}`); continue; }
+        if (ox > 20 && A.t >= B.b - 2) { const x = (Math.max(A.l, B.l) + Math.min(A.r, B.r)) / 2 + shift; set(`M${f(x)},${f(A.t)} L${f(x)},${f(B.b)}`); continue; }
+        const dir = A.l < B.l ? 1 : -1, ax = dir > 0 ? A.r : A.l, ex = dir > 0 ? B.l : B.r;
+        if (oy > 20 && Math.abs(ex - ax) < 90) { const y = (Math.max(A.t, B.t) + Math.min(A.b, B.b)) / 2 + shift; set(`M${f(ax)},${f(y)} L${f(ex)},${f(y)}`); continue; }
+        // Quer über die Karte: außen um den Ring herum, als Bogen unter dem Haus
+        const clamp = (v, a, b) => Math.max(a + 14, Math.min(b - 14, v));
+        const ay = clamp(cy, A.t, A.b), ey = clamp(cy, B.t, B.b) + shift;
+        const rx = Math.min(R + 14, Math.abs(cx - ax) - 8, Math.abs(ex - cx) - 8), ry = Ry + 14;
+        const lx = cx - dir * rx, hx = cx + dir * rx;
+        set(`M${f(ax)},${f(ay)} C${f(ax + dir * 30)},${f(ay)} ${f(lx)},${f(cy - 30)} ${f(lx)},${f(cy)} A${f(rx)},${f(ry)} 0 0 ${dir > 0 ? 0 : 1} ${f(hx)},${f(cy)} C${f(hx)},${f(cy - 30)} ${f(ex - dir * 30)},${f(ey)} ${f(ex)},${f(ey)}`);
+        continue;
+      }
+      if (!L.el) continue;
+      if (!L.el.offsetParent) { L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', '')); continue; }
+      const r = L.el.getBoundingClientRect();
+      const top = (r.top - sr.top) / k0, bottom = (r.bottom - sr.top) / k0, left = (r.left - sr.left) / k0, right = (r.right - sr.left) / k0;
+      const ncx = (left + right) / 2, ncy = (top + bottom) / 2;
+      let ax, ay, tx, ty;
+      // Erzeuger, Netz und Batterie stehen neben dem Ring: Linie immer seitlich anschließen (nie hinter anderen Kacheln)
+      const sideOnly = (this._mode !== 'narrow' || this._cmp) && (['pv', 'pv2', 'grid'].includes(L.k) || /^bat\d*$/.test(L.k));
+      if (!sideOnly && top > cy + R * 0.7) { ax = ncx; ay = top; tx = 0; ty = -1; }
+      else if (!sideOnly && bottom < cy - R * 0.7) { ax = ncx; ay = bottom; tx = 0; ty = 1; }
+      else if (ncx < cx) { ax = right; ay = ncy; tx = 1; ty = 0; }
+      else { ax = left; ay = ncy; tx = -1; ty = 0; }
+      let ang = Math.atan2(ay - cy, ax - cx);
+      // Verbraucher unterhalb: Linie immer aus der Unterseite des Rings führen
+      if (ty === -1) ang = Math.max(Math.PI / 2 - 0.6, Math.min(Math.PI / 2 + 0.6, ang));
+      const bx = cx + Math.cos(ang) * R, by = cy + Math.sin(ang) * Ry;
+      if (ty === -1 && walls.length && (this._mode !== 'narrow' || this._cmp)) {
+        const lo = Math.min(ax, bx), hi = Math.max(ax, bx), dir = bx > ax ? 1 : -1;
+        const near = walls.filter((w) => w.l < hi && w.r > lo && w.b <= ay), wall = Math.max(-Infinity, ...near.map((w) => w.b));
+        if (wall > by) {
+          // Waagerecht unter der Kachel bis hinter ihre Kante, dann hoch zum Ring. Weiter entfernte Verbraucher laufen etwas höher, so überlagern sich die Linien weniger
+          const rail = wall + (ay - wall) * (0.62 - 0.3 * Math.min(1, (hi - lo) / cx));
+          const qx = (dir > 0 ? Math.max(...near.map((w) => w.r)) : Math.min(...near.map((w) => w.l))) + dir * 8;
+          const mx = ax + dir * Math.min(60, Math.abs(qx - ax)), f = (n) => n.toFixed(1);
+          const d = `M${f(ax)},${f(ay)} C${f(ax)},${f(rail)} ${f(mx - dir * 10)},${f(rail)} ${f(mx)},${f(rail)} L${f(qx)},${f(rail)} C${f(qx + (bx - qx) * 0.5)},${f(rail)} ${f(bx)},${f(by + (rail - by) * 0.6)} ${f(bx)},${f(by)}`;
+          L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', d));
+          continue;
+        }
+      }
+      const k = Math.hypot(ax - bx, ay - by) * 0.45;
+      const d = `M${ax.toFixed(1)},${ay.toFixed(1)} C${(ax + tx * k).toFixed(1)},${(ay + ty * k).toFixed(1)} ${(bx + Math.cos(ang) * k).toFixed(1)},${(by + Math.sin(ang) * k).toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
+      L.g.querySelectorAll('path').forEach((p) => p.setAttribute('d', d));
+    }
+  }
+
+  _anim(key, target, root) {
+    const numEl = root.querySelector('.num'), unitEl = root.querySelector('.unit');
+    let t = this._tw[key];
+    if (target === null) {
+      this._tw[key] = { target: null };
+      numEl.textContent = '—'; unitEl.textContent = '';
+      return;
+    }
+    if (!t || t.target === null || t.cur === undefined) t = this._tw[key] = { cur: target };
+    if (t.target === target && t.numEl === numEl) return;
+    // Nur große Sprünge zählen hoch. Jedes Hochzählen schreibt in jedem Bild Text und zwingt das Gerät, neu zu messen und zu zeichnen
+    const calm = !['always', 'immer'].includes(this._c.animations) && window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    if (calm || Math.abs(target - t.cur) < Math.max(50, Math.abs(t.cur) * 0.15)) {
+      Object.assign(t, { cur: target, from: undefined, target, numEl, unitEl });
+      const [n, u] = this._sw(target);
+      if (numEl.textContent !== n) numEl.textContent = n;
+      if (unitEl.textContent !== u) unitEl.textContent = u;
+      return;
+    }
+    Object.assign(t, { from: t.cur, target, t0: performance.now(), numEl, unitEl });
+    this._holdFit(950);
+    if (!this._raf) this._raf = requestAnimationFrame((n) => this._tick(n));
+  }
+  _tick(now) {
+    let running = false;
+    for (const t of Object.values(this._tw)) {
+      if (t.target === null || t.from === undefined || t.done) continue;
+      const p = Math.min(1, (now - t.t0) / 900);
+      const e = 1 - Math.pow(1 - p, 3);
+      t.cur = t.from + (t.target - t.from) * e;
+      const [n, u] = this._sw(t.cur);
+      if (t.numEl.textContent !== n) t.numEl.textContent = n;
+      if (t.unitEl.textContent !== u) t.unitEl.textContent = u;
+      if (p < 1) running = true;
+    }
+    this._raf = running ? requestAnimationFrame((n) => this._tick(n)) : null;
+  }
+
+  _link(k, active, forward, color, power) {
+    const L = this._links && this._links.find((x) => x.k === k);
+    if (!L) return;
+    L.g.classList.toggle('on', !!active);
+    L.g.classList.toggle('rev', !forward);
+    L.g.style.setProperty('--c', color);
+    const speed = 22 + 120 * Math.min(1, Math.sqrt(Math.abs(power || 0) / 8000));
+    const dur = (18 / speed).toFixed(2) + 's';
+    if (L.dur !== dur) { L.dur = dur; L.g.style.setProperty('--d', dur); }
+  }
+
+  // Batterie-Prognose: geglättete Leistung (~5 min) -> Uhrzeit "voll um" / "reicht bis"
+  _batForecast(bat, soc, b, idx) {
+    const c = this._c, h = this._hass, cap = parseFloat((b || c.battery).capacity_kwh);
+    const now = Date.now();
+    const S = ((this._emaS = this._emaS || [])[idx || 0] = (this._emaS[idx || 0] || {}));
+    if (bat !== null) {
+      const dt = S.t ? (now - S.t) / 1000 : 0;
+      const a = dt > 0 ? 1 - Math.exp(-dt / 300) : 1;
+      S.v = S.v === undefined ? bat : S.v + a * (bat - S.v);
+      S.t = now;
+    }
+    if (!cap || soc === null) return '';
+    const { reserve, maxSoc } = this._limits(b);
+    // Richtungswechsel oder Glättung noch nicht eingeschwungen -> aktuellen Wert nehmen
+    const e = S.v || 0;
+    const p = bat !== null && (Math.sign(e) !== Math.sign(bat) || Math.abs(e) < Math.abs(bat) * 0.3) ? bat : e;
+    const avail = Math.max(0, (soc - reserve) / 100 * cap);
+    if (p > 50 && soc < maxSoc - 0.5) {
+      const hrs = ((maxSoc - soc) / 100) * cap * 1000 / p;
+      if (hrs > 24) return T('bat.usable_slow', { kwh: nf(avail, 1) });
+      return T('bat.full_at', { time: clock(now + hrs * 3600e3), dur: fDur(hrs) });
+    }
+    if (p < -50 && soc > reserve + 0.5) {
+      const hrs = avail * 1000 / -p;
+      if (hrs > 24) return T('bat.last_24', { kwh: nf(avail, 1) });
+      return T('bat.last_until', { time: clock(now + hrs * 3600e3), dur: fDur(hrs) });
+    }
+    if (soc >= maxSoc - 0.5) return T('bat.full', { kwh: nf(avail, 1) });
+    return T('bat.usable', { kwh: nf(avail, 1), res: Math.round(reserve) });
+  }
+
+  // Entladegrenze und Maximalladung der Batterie in Prozent: Sensor, Helfer oder fester Wert
+  _bk(i) { return i ? 'bat' + (i + 1) : 'bat'; }
+  // 3D: Linien nach den echten Wegen. Das Haus bekommt nur, was dort ankommt; Solar lädt direkt den Speicher und speist direkt ein.
+  _routes3d(v) {
+    const via = this._via && v.bats[0] && v.bats[0].out !== null;
+    let solar = via ? 0 : v.p1Bat + v.pv2Bat, gridLeft = v.gImp;
+    const pvGrid = via ? 0 : v.p1Exp, pv2Grid = via ? 0 : v.p2Exp;
+    let expLeft = Math.max(0, v.gExp - pvGrid - pv2Grid);
+    this._link('pv', v.p1Home > TH, true, PAL.pv, v.p1Home);
+    this._link('pv2', v.p2Home > TH, true, PAL.pv, v.p2Home);
+    this._link('r:pv:grid', pvGrid > TH, true, PAL.pv, pvGrid);
+    this._link('r:pv2:grid', pv2Grid > TH, true, PAL.pv, pv2Grid);
+    v.bats.filter((x) => !x.lead && x.b.behind_meter !== true).forEach((x) => {
+      const k = this._bk(x.i);
+      if (via && x.i === 0) {
+        const d = Math.min(x.out, expLeft);
+        expLeft -= d;
+        this._link(`r:${k}:grid`, d > TH, true, PAL.pv, d);
+        this._link(k, x.out - d > TH, true, x.p !== null && x.p < -TH ? PAL.dis : PAL.pv, x.out - d);
+        return;
+      }
+      const chg = Math.max(0, x.p || 0), dis = Math.max(0, -(x.p || 0));
+      const fromPv = Math.min(chg, solar), fromGrid = Math.min(chg - fromPv, gridLeft), toGrid = Math.min(dis, expLeft);
+      solar -= fromPv; gridLeft -= fromGrid; expLeft -= toGrid;
+      this._link(`r:pv:${k}`, fromPv > TH, true, PAL.pv, fromPv);
+      this._link(`r:grid:${k}`, fromGrid > TH, true, PAL.imp, fromGrid);
+      this._link(`r:${k}:grid`, toGrid > TH, true, PAL.dis, toGrid);
+      this._link(k, dis - toGrid > TH, true, PAL.dis, dis - toGrid);
+    });
+    // Rest der Einspeisung, den kein Gerät erklärt (zum Beispiel zeitversetzte Sensoren), bleibt an der Hauslinie
+    if (gridLeft > TH) this._link('grid', true, true, PAL.imp, gridLeft);
+    else if (expLeft > TH) this._link('grid', true, false, PAL.exp, expLeft);
+    else this._link('grid', false, true, PAL.imp, 0);
+  }
+  // 3D-Objekte: nur neu zeichnen, wenn sich die gerundeten Werte ändern
+  _draw3d(v) {
+    const D3 = WD.D3, c = this._c, large = !this._cmp, q = (w) => (w === null || w === undefined ? 'x' : Math.round(w / (Math.abs(w) < 200 ? 5 : 25)));
+    const put = (k, key, fn) => {
+      const el = this._$(`[data-o="${k}"]`);
+      if (!el || this._3k[k] === key) return;
+      this._3k[k] = key;
+      D3.draw(el, fn());
+    };
+    const solar = (k, cfg, w) => {
+      const list = (cfg.strings || []).map((s) => watt(this._hass, s.entity) || 0);
+      const strs = list.length ? list : [w / 3, w / 3, w / 3];
+      // Ohne peak_w gilt die höchste bisher gesehene Leistung als Maßstab für die Helligkeit
+      this._pvMax = Math.max(this._pvMax || 1000, w);
+      const peak = (parseFloat(cfg.peak_w) || this._pvMax) / strs.length;
+      put(k, [strs.map(q).join(), Math.round(peak), large].join(), () => D3.solar(strs, k, large && !!list.length, peak, cfg.name || T('flow.pv')));
+    };
+    if (c.pv) solar('pv', c.pv, Math.max(0, v.pv1 || 0));
+    if (c.pv2 && c.pv2.entity) solar('pv2', c.pv2, Math.max(0, v.pv2 || 0));
+    if (c.grid) { const g = v.grid || 0; put('grid', [q(g), large].join(), () => D3.meter(g, 'grid', large, this._fW(g), c.grid.name || T('flow.grid'))); }
+    v.bats.filter((x) => !x.lead).forEach((x) => {
+      const k = this._bk(x.i), p = x.p || 0, grp = [x].concat(x.shared || []);
+      const socs = grp.map((o) => (o.soc === null ? null : Math.round(o.soc)));
+      const name = grp.map((o, i) => o.b.name || T('flow.battery') + ' ' + (o.i + 1)).join(' · ');
+      put(k, [socs.join(), q(p), large].join(), () => D3.stack(socs, p, k, large, name));
+      if (grp.length > 1) {
+        const el = this._$(`[data-k="${k}"]`);
+        el.querySelector('.lbl').textContent = name;
+        el.querySelector('.soc-txt').textContent = socs.map((s) => (s === null ? '—' : s + ' %')).join(' / ');
+        // Turm: Die zweite Kachel ist ausgeblendet, also stehen beide Temperaturen in der ersten. Ein Tipp öffnet den ersten Sensor.
+        const withTemp = grp.filter((o) => o.b.temp);
+        if (withTemp.length) {
+          if (!el.querySelector('.temp-txt')) el.querySelector('.socbox').insertAdjacentHTML('afterend', `<div class="socbox" data-e="${esc(withTemp[0].b.temp)}"><div class="soc-row"><span>${T('flow.temp')}</span><b class="temp-txt">—</b></div></div>`);
+          el.querySelector('.temp-txt').textContent = grp.map((o) => this._temp(o.b.temp)).join(' / ');
+        }
+      }
+    });
+    const form = c.house_style === 'flach' ? 'modern' : 'sattel', s = v.src;
+    put('home', [q(v.home), q(s.pv), q(s.bat), q(s.imp), form, large].join(), () => D3.house(v.home, s, 'home', form, large, (c.home && c.home.name) || T('flow.home')));
+  }
+  _temp(id) {
+    const ts = id && this._hass.states[id], tv = ts ? parseFloat(ts.state) : NaN;
+    return isNaN(tv) ? '—' : `${nf(tv, 1)} ${ts.attributes.unit_of_measurement || '°C'}`;
+  }
+  _limits(bb) {
+    const h = this._hass, b = bb || (this._c && this._c.battery) || {};
+    const lim = (sensor, fixed, def) => {
+      const v = val(h, sensor, null);
+      if (v !== null && !isNaN(v)) return Math.max(0, Math.min(100, v));
+      return typeof fixed === 'number' ? Math.max(0, Math.min(100, fixed)) : def;
+    };
+    const reserve = lim(b.reserve_soc, b.reserve_pct, 0);
+    const maxSoc = Math.max(reserve + 1, lim(b.max_soc, b.max_pct, 100));
+    return { reserve, maxSoc };
+  }
+
+  // Präsenz-Banner: PV-Überschuss oder hoher Netzbezug (mit Verzögerung gegen Flackern)
+  _banner(x) {
+    const c = this._c, h = this._hass, el = this._$('.banner');
+    if (!el) return;
+    const sc = c.surplus || {}, gc = c.grid_alert || {};
+    const now = Date.now();
+    const price = WD.price(h, c.grid_price, c.grid_price_ct, null), feed = WD.price(h, c.feed_in, c.feed_in_ct, 0);
+    const thrS = sc.threshold || 1500, thrG = gc.threshold || 1000;
+    const delayS = (sc.delay === undefined ? 60 : sc.delay) * 1000, delayG = (gc.delay === undefined ? 120 : gc.delay) * 1000;
+    const surOn = sc.enabled !== false && x.gExp > (this._modeB === 'sur' ? thrS * 0.7 : thrS);
+    const impOn = gc.enabled !== false && x.gImp > (this._modeB === 'imp' ? thrG * 0.7 : thrG);
+    this._surT = surOn ? (this._surT || now) : 0;
+    this._impT = impOn ? (this._impT || now) : 0;
+    let mode = null;
+    if (surOn && now - this._surT >= delayS) mode = 'sur';
+    else if (impOn && now - this._impT >= delayG) mode = 'imp';
+    // Nachprüfen, sobald die Verzögerung abgelaufen ist (auch ohne neue Sensorwerte)
+    clearTimeout(this._bT);
+    if (!mode && (surOn || impOn)) this._bT = setTimeout(() => this._update(), 5000);
+    if (!!mode !== el.classList.contains('show')) {
+      // Ein- und Ausblenden dauert 0,6 s: so lange nicht neu skalieren, danach einmal
+      this._holdFit(700);
+    }
+    this._modeB = mode;
+    el.classList.toggle('show', !!mode);
+    el.classList.toggle('sur', mode === 'sur');
+    el.classList.toggle('imp', mode === 'imp');
+    if (!mode) return;
+    const icon = el.querySelector('ha-icon');
+    let title, sub, chips = '';
+    if (mode === 'sur') {
+      icon.setAttribute('icon', 'mdi:white-balance-sunny');
+      title = '☀ ' + T('ban.surplus', { w: this._fW(x.gExp) });
+      const gain = price === null ? null : x.gExp / 1000 * Math.max(0, price - feed);
+      sub = (x.soc !== null && x.soc >= 95 ? T('ban.batfull') : '') + (gain === null ? T('ban.tonet0') : T('ban.tonet', { gain: nf(gain, 2), cur: cur() }));
+      chips = (sc.suggestions || []).map((s) => {
+        const st = s.entity && h.states[s.entity];
+        const running = st && (st.state === 'on' || (parseFloat(st.state) || 0) > 10);
+        if (!running && s.power && s.power > x.gExp) return '';
+        return `<span class="chip${running ? ' run' : ''}"><ha-icon icon="${esc(s.icon || 'mdi:power-plug')}"></ha-icon>${running ? '✓ ' + (s.running ? esc(s.running) : T('ban.running', { name: esc(s.name) })) : esc(s.name)}</span>`;
+      }).join('');
+    } else {
+      icon.setAttribute('icon', 'mdi:transmission-tower-import');
+      title = '⚡ ' + T('ban.fromgrid', { w: this._fW(x.gImp) });
+      const cost = price === null ? null : x.gImp / 1000 * price;
+      let why = x.soc !== null && x.soc <= this._limits().reserve + 2 ? T('ban.batempty') : (x.bat !== null && -x.bat > 3000 ? T('ban.batlimit') : '');
+      let big = null;
+      (c.consumers || []).concat(...(c.consumer_groups || []).map((g) => g.items || [])).forEach((s) => { const w = s.entity ? this._cw(s) : null; if (w && w > 500 && (!big || w > big.w)) big = { n: s.name, w }; });
+      if (big) why = (why ? why + ' · ' : '') + `${esc(big.n)}: ${this._fW(big.w)}`;
+      sub = (cost === null ? '' : T('ban.cost', { cost: nf(cost, 2), cur: cur() }) + (why ? ' · ' : '')) + why;
+    }
+    this._set('.b-title', title);
+    this._set('.b-sub', sub, true);
+    this._set('.b-chips', chips, true);
+  }
+
+  // consumer_groups_sort: leistung. Aktive Geräte (über on_w) nach Leistung absteigend, darunter die übrigen in eingetragener Reihenfolge.
+  // Gegen Springen: höchstens alle 10 s neu ordnen, und ein Gerät überholt seinen Vordermann nur mit deutlich mehr Leistung (10 % und 20 W)
+  _sortGroup(i, g) {
+    const items = g.items || [], now = Date.now();
+    let ord = this._gOrd[i];
+    if (ord && ord.length === items.length && now - (ord.t || 0) < 10000) return;
+    const p = items.map((x) => { const w = x.entity ? this._cw(x) : null; return w !== null && w > onW(x) ? w : -1; });
+    ord = ord && ord.length === items.length ? ord.slice() : items.map((x, j) => j);
+    const ahead = (a, b) => (p[b] < 0 ? p[a] >= 0 || false : p[a] >= 0 && p[a] > p[b] * 1.1 && p[a] - p[b] > 20);
+    for (let pass = 0; pass < items.length; pass++) {
+      let moved = false;
+      for (let k = 0; k + 1 < ord.length; k++) {
+        const a = ord[k], b = ord[k + 1];
+        // Inaktive untereinander: zurück in die eingetragene Reihenfolge
+        if (ahead(b, a) || (p[a] < 0 && p[b] < 0 && b < a)) { ord[k] = b; ord[k + 1] = a; moved = true; }
+      }
+      if (!moved) break;
+    }
+    ord.t = now;
+    this._gOrd[i] = ord;
+    ord.forEach((j, n) => { const it = this._$(`[data-i="${i}-${j}"]`); if (it && it.style.order !== String(n)) it.style.order = String(n); });
+  }
+
+  // Kurzansicht: Fenster mit allen Geräten einer Gruppe, Werte laufen live mit
+  _openGroup(i) {
+    const g = (this._c.consumer_groups || [])[i], dl = this._$('.gdlg'), h = this._hass;
+    if (!g || !dl || !h) return;
+    const rows = (g.items || []).map((x, j) => {
+      const st = x.entity ? h.states[x.entity] : null;
+      if (x.entity && (!st || st.state === 'unavailable')) return '';
+      const o = this._gSort && this._gOrd[i] ? this._gOrd[i].indexOf(j) : -1;
+      return `<div class="d-it" data-j="${j}" data-e="${esc(x.entity || x.secondary)}"${o >= 0 ? ` style="order:${o}"` : ''}><i></i><span class="in">${esc(x.name || x.entity)}</span><b></b></div>`;
+    }).join('');
+    const ico = g.image ? `<span class="ico logo"><img src="${esc(g.image)}" alt=""></span>` : `<span class="ico"><ha-icon icon="${esc(g.icon || 'mdi:door')}"></ha-icon></span>`;
+    dl.style.setProperty('--c', rgb(g.color, '167,139,250'));
+    dl.innerHTML = `<div class="d-hd">${ico}<span class="d-name">${esc(g.name)}</span><b class="d-sum"></b><button class="d-x" aria-label="${T('close')}">×</button></div><div class="d-its">${rows}</div>`;
+    this._dlg = i;
+    this._dlgUpd();
+    if (dl.showModal) dl.showModal(); else dl.setAttribute('open', '');
+  }
+  _dlgUpd() {
+    const g = (this._c.consumer_groups || [])[this._dlg], dl = this._$('.gdlg'), h = this._hass;
+    if (!g || !dl || !h) return;
+    let sum = 0, any = false;
+    (g.items || []).forEach((x, j) => {
+      const p = x.entity ? this._cw(x) : null;
+      if (p !== null) { sum += p; any = true; }
+      const it = dl.querySelector(`[data-j="${j}"]`);
+      if (!it) return;
+      let txt = p === null ? '' : this._fW(p);
+      const sec = x.secondary && h.states[x.secondary];
+      if (!txt && sec && !['unavailable', 'unknown'].includes(sec.state)) {
+        txt = `${nf(parseFloat(sec.state) || 0, x.secondary_decimals === undefined ? 1 : x.secondary_decimals)} ${sec.attributes.unit_of_measurement || ''}`.trim();
+      }
+      it.classList.toggle('on', (p || 0) > onW(x));
+      const b = it.querySelector('b');
+      if (b.textContent !== txt) b.textContent = txt;
+    });
+    const s = dl.querySelector('.d-sum');
+    if (s) s.textContent = any ? this._fW(sum) : '';
+  }
+
+  // Leistung eines Verbrauchers. Mit minus (Differenz, z. B. Zählerkaskade): entity - minus (+ plus), nie negativ. Ohne minus unverändert.
+  _cw(x) {
+    if (!x || !x.entity) return null;
+    const h = this._hass, L = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+    const p = watt(h, x.entity), mi = L(x.minus);
+    if (!mi.length || p === null) return p;
+    // mehrere Unterzähler möglich: Hauptzähler minus Summe der Unterzähler (plus Summe der Zusatzwerte)
+    let s = 0;
+    for (let i = 0; i < mi.length; i++) { const m = watt(h, mi[i]); if (m === null) return null; s += m; }
+    return Math.max(0, p - s + L(x.plus).reduce((a, id) => a + (watt(h, id) || 0), 0));
+  }
+
+  // Leistung formatieren; watt_only: true zeigt immer Watt statt ab 1000 W kW
+  _sw(w) { return splitW(w, !!(this._c && this._c.watt_only), this._dec.p); }
+  _fW(w) { return fW(w, !!(this._c && this._c.watt_only), this._dec.p); }
+  _fk(v) { return fKwh(v, this._dec.e); }
+  _fp(v) { return fPct(v, this._dec.q); }
+
+  _set(sel, txt, isHtml, root) {
+    const el = root ? root.querySelector(sel) : this._$(sel);
+    if (!el) return;
+    if (isHtml) { if (el.innerHTML !== txt) el.innerHTML = txt; }
+    else if (el.textContent !== txt) el.textContent = txt;
+  }
+
+  _update0() {
+    const h = this._hass, c = this._c;
+    if (!h || !c || !this._$('.stage')) return;
+    const pv1 = c.pv ? watt(h, c.pv.entity) : null;
+    const pv2 = c.pv2 && c.pv2.entity ? watt(h, c.pv2.entity) : null;
+    // Summe aller Erzeuger. Mit pv2 gilt: PV 2 (z. B. Balkonkraftwerk) speist zuerst ins Haus.
+    const pv = c.strict_data && ((c.pv?.entity && pv1 === null) || (c.pv2?.entity && pv2 === null)) ? null : pv1 === null && pv2 === null ? null : (pv1 || 0) + (pv2 || 0);
+    let grid = c.grid ? watt(h, c.grid.entity) : null;
+    if (grid !== null && c.grid.invert) grid = -grid;
+    // Je Speicher Leistung (Laden positiv) und Ladestand; Summe bzw. nach Kapazität gewichteter Mittelwert für Ring und Banner
+    const bats = c.batteries.map((b, i) => {
+      let p = b.power ? watt(h, b.power) : null;
+      // Getrennte Sensoren für Laden und Entladen (z. B. SunEnergyXT): Laden positiv, Entladen negativ
+      if (!b.power && (b.power_charge || b.power_discharge)) {
+        const pc = b.power_charge ? watt(h, b.power_charge) : null, pd = b.power_discharge ? watt(h, b.power_discharge) : null;
+        p = pc === null && pd === null ? null : (pc || 0) - (pd || 0);
+      }
+      if (p !== null && b.invert) p = -p;
+      // pv_to_battery: direkt: Ausgang des vorgeschalteten Speichers; ohne eigenen Leistungssensor ergibt sich Laden = PV-Eingang - Ausgang
+      let out = null, inAc = null;
+      if ((this._via && i === 0) || i === this._via2) {
+        out = watt(h, b.power_out);
+        if (out !== null) out = Math.max(0, out);
+        // pv2.to_battery: AC-Ladung aus dem Haus (power_in), ohne Sensor 0
+        if (i === this._via2) { const ai = b.power_in ? watt(h, b.power_in) : null; inAc = ai === null ? 0 : Math.max(0, ai); }
+        if (p === null && out !== null) p = i === this._via2 ? Math.max(0, pv2 || 0) + inAc - out : Math.max(0, pv1 || 0) - out;
+      }
+      return { b, i, p, out, inAc, soc: num(h, b.soc), cap: parseFloat(b.capacity_kwh) || 0 };
+    });
+    // Gemeinsamer Leistungssensor (übereinander gestapelte Batterien): zählt nur einmal, beim ersten Speicher mit diesem Sensor
+    const sensorSeen = {};
+    bats.forEach((x) => {
+      const id = x.b.power || (x.b.power_charge || x.b.power_discharge ? `${x.b.power_charge}|${x.b.power_discharge}` : '');
+      if (!id) return;
+      if (sensorSeen[id]) { x.lead = sensorSeen[id]; x.p = null; (x.lead.shared = x.lead.shared || []).push(x); } else sensorSeen[id] = x;
+    });
+    // behind_meter: Speicher hinter dem Zähler steht nicht in der Bilanz (eigene Kachel bleibt). Seine Ladung zählt wie ein Gerät im Haus, seine Abgabe als Quelle
+    const inBal = bats.filter((x) => x.b.behind_meter !== true);
+    const bmChg = bats.reduce((a, x) => (x.b.behind_meter === true ? a + (x.i === this._via2 ? (x.inAc || 0) : Math.max(0, x.p || 0)) : a), 0);
+    // pv2.to_battery: PV 2 speist den Speicher, nicht das Haus
+    const pv2Via = this._via2 >= 0 ? Math.max(0, pv2 || 0) : 0;
+    const bat = c.strict_data && inBal.some(x => !x.lead && x.p === null) ? null : inBal.some((x) => x.p !== null) ? inBal.reduce((a, x) => a + (x.p || 0), 0) : null;
+    const withSoc = bats.filter((x) => x.soc !== null);
+    const wSum = withSoc.reduce((a, x) => a + (x.cap || 1), 0);
+    const soc = c.strict_data && bats.length > 1 && bats.some(x => x.soc === null || !x.cap) ? null : withSoc.length ? withSoc.reduce((a, x) => a + x.soc * (x.cap || 1), 0) / wSum : null;
+    let home = c.home && c.home.entity ? watt(h, c.home.entity) : null;
+    // Negativer Verbrauch ist nicht möglich, dann gilt die eigene Berechnung
+    if (home !== null && home < 0) home = null;
+    // Mit eigenem Sensor gilt dessen Wert, die Abgabe käme sonst im Ring dazu, nicht aber in der Zahl
+    const bmDis = home === null ? bats.reduce((a, x) => (x.b.behind_meter === true ? a + (x.i === this._via2 ? (x.out || 0) : Math.max(0, -(x.p || 0))) : a), 0) : 0;
+    if (home === null && !c.strict_data) home = Math.max(0, (pv || 0) - pv2Via + (grid || 0) - (bat || 0) + bmDis);
+    else if (home !== null && c.pv2 && c.pv2.add_to_home) home += Math.max(0, pv2 || 0);
+
+    // grid2: Bezug des zweiten Zählers. Er steckt nicht im Hauptzähler: Hausverbrauch und Netzanteil im Ring werden um ihn größer
+    const g2w = c.grid2 ? Math.max(0, watt(h, c.grid2.entity) || 0) : 0;
+    if (home !== null) home += g2w;
+    const gImpM = Math.max(0, grid || 0), gImp = gImpM + g2w, gExp = Math.max(0, -(grid || 0));
+    // Herkunft und Aufteilung je Speicher: lädt der eine, während der andere entlädt, zählt beides
+    const bDis = inBal.reduce((acc, x) => acc + Math.max(0, -(x.p || 0)), bmDis), bChg = inBal.reduce((acc, x) => acc + Math.max(0, x.p || 0), 0);
+    const pvHome = Math.min(Math.max(0, (pv || 0) - pv2Via), Math.max(0, home - gImp - bDis));
+    const tot = pvHome + gImp + bDis;
+
+    const gridKnown = !c.strict_data || (grid !== null && (!c.grid2?.entity || watt(h, c.grid2.entity) !== null));
+    this._set('[data-p="aut"]', gridKnown && home > TH ? this._fp(1 - gImp / home) : '—');
+    this._set('[data-p="self"]', gridKnown && (pv || 0) > TH ? this._fp(1 - gExp / pv) : '—');
+
+    // Aufteilung je Quelle: PV 2 (Balkonkraftwerk) deckt zuerst das Haus, PV 1 lädt danach die Batterie und speist ein
+    const need = Math.max(0, home - gImp - bDis);
+    const p2raw = Math.max(0, pv2 || 0), p2 = this._via2 >= 0 ? 0 : p2raw, p1 = Math.max(0, pv1 || 0);
+    const p2Home = Math.min(p2, need);
+    const p1Home = Math.min(p1, Math.max(0, need - p2Home));
+    const p1Bat = Math.min(bChg, Math.max(0, p1 - p1Home));
+    const p1Exp = Math.min(gExp, Math.max(0, p1 - p1Home - p1Bat));
+    const p2Exp = Math.min(Math.max(0, gExp - p1Exp), Math.max(0, p2 - p2Home));
+    const p2Bat = Math.min(Math.max(0, p2 - p2Home - p2Exp), Math.max(0, bChg - p1Bat));
+    // Rest ohne Ziel: Hausverbrauch-Sensor, Netz und PV passen kurz nicht zusammen (zeitversetzte Werte). Er bleibt beim Haus, wie der Netz-Rest in 3D (#23)
+    const viaOn = this._via && bats[0] && bats[0].out !== null;
+    const p1Rest = viaOn ? 0 : Math.max(0, p1 - p1Home - p1Bat - p1Exp), p2Rest = Math.max(0, p2 - p2Home - p2Exp - p2Bat);
+    // Zeilen untereinander (Name links, Wert rechts): Haus, Batterie, Netz, Strings, Prognose
+    const row = (label, val) => `<div class="sr"><span>${label}</span> <b>${val}</b></div>`;
+    const useText = (home_, bat_, exp_) => {
+      const use = [];
+      if (home_ > TH) use.push(row(T('pv.use.home'), this._fW(home_)));
+      if (bat_ > TH) use.push(row(T('pv.use.bat'), this._fW(bat_)));
+      if (exp_ > TH) use.push(row(T('pv.use.grid'), this._fW(exp_)));
+      return use.join('');
+    };
+    if (c.pv2 && c.pv2.entity) {
+      const el = this._$('[data-k="pv2"]'), on = p2raw > TH;
+      el.classList.toggle('on', on);
+      this._anim('pv2', pv2, el);
+      this._set('.pv2 .tag', pv2 === null ? T('tag.offline') : on ? T('tag.producing') : T('tag.idle'));
+      const parts2 = [];
+      const u2 = on ? (this._via2 >= 0 ? row(T('pv.use.store'), this._fW(p2raw)) : useText(p2Home + p2Rest, 0, p2Exp)) : '';
+      if (u2) parts2.push(u2);
+      (c.pv2.strings || []).forEach((s) => parts2.push(row(esc(s.name || s.entity), this._fW(watt(h, s.entity)))));
+      this._set('.pv2 .sub', parts2.join(''), true);
+      if (this._via2 < 0) this._link('pv2', on, true, PAL.pv, pv2);
+    }
+    if (c.pv) {
+      const el = this._$('[data-k="pv"]'), on = p1 > TH;
+      el.classList.toggle('on', on);
+      this._anim('pv', pv1, el);
+      this._set('.pv .tag', pv1 === null ? T('tag.offline') : on ? T('tag.producing') : T('tag.idle'));
+      const parts = [];
+      // Wohin die erzeugte Leistung geht: Haus, Batterie, Netz
+      if (on) {
+        // pv_to_battery: direkt: Der ganze Solarstrom geht in den Speicher, die Aufteilung steht beim Ausgang des Speichers
+        const u1 = this._via && bats[0].out !== null ? row(T('pv.use.store'), this._fW(p1)) : useText(p1Home + p1Rest, p1Bat, p1Exp);
+        if (u1) parts.push(u1);
+      }
+      (c.pv.strings || []).forEach((s) => parts.push(row(esc(s.name || s.entity), this._fW(watt(h, s.entity)))));
+      // Prognose: Leistung (W, kW) oder Tagesprognose in kWh (z. B. Solcast "heute")
+      const fst = c.pv.forecast ? h.states[c.pv.forecast] : null;
+      const fUnit = fst ? String(fst.attributes.unit_of_measurement || '') : '';
+      if (/^(k|m)?wh$/i.test(fUnit)) {
+        const e = num(h, c.pv.forecast);
+        const kwh = e === null ? null : /^mwh$/i.test(fUnit) ? e * 1000 : /^kwh$/i.test(fUnit) ? e : e / 1000;
+        if (kwh !== null) parts.push(row(T('forecast.day'), this._fk(kwh) + ' kWh'));
+      } else {
+        const fc = c.pv.forecast ? watt(h, c.pv.forecast) : null;
+        if (fc !== null) parts.push(row(T('forecast'), this._fW(fc)));
+      }
+      this._set('.pv .sub', parts.join(''), true);
+      this._link('pv', on, true, PAL.pv, pv1);
+    }
+    if (c.grid) {
+      const el = this._$('[data-k="grid"]'), on = Math.abs(grid || 0) > TH, imp = (grid || 0) > 0;
+      const col = imp ? PAL.imp : PAL.exp;
+      el.style.setProperty('--c', on ? col : PAL.mut);
+      el.classList.toggle('on', on);
+      this._anim('grid', grid === null ? null : Math.abs(grid), el);
+      this._set('.grid .tag', grid === null ? T('tag.offline') : Math.abs(grid) < 0.5 ? T('tag.balanced') : imp ? T('tag.import') : T('tag.export'));
+      this._link('grid', on, imp, col, grid);
+    }
+    bats.forEach((x) => {
+      const key = this._bk(x.i), el = this._$(`[data-k="${key}"]`);
+      if (!el) return;
+      // 3D: Batterien an einem gemeinsamen Sensor stehen als Turm in der Kachel des ersten
+      if (this._s3d && x.lead) {
+        if (el.style.display !== 'none') { el.style.display = 'none'; this._schedLayout(); }
+        this._link(key, false, false, PAL.bat, 0);
+        return;
+      }
+      const lead = x.lead || x, grp = [lead].concat(lead.shared || []);
+      const bp = lead.p, bs = x.soc, chg = (bp || 0) > 0;
+      // Vorgeschalteter Speicher (pv_to_battery: direkt): Strom läuft durch ihn, auch wenn er weder lädt noch entlädt (Durchleitung)
+      const via2 = x.i === this._via2 && x.out !== null;
+      const via = (this._via && x.i === 0 && x.out !== null) || via2;
+      const pin = via2 ? p2raw : via ? Math.max(0, pv1 || 0) : 0, out = via ? x.out : 0, inAc = via2 ? (x.inAc || 0) : 0;
+      const net = Math.abs(bp || 0) > TH;
+      const through = via && !net && Math.max(pin, out, inAc) > TH;
+      const on = net || through;
+      const col = through ? PAL.pv : on && chg ? PAL.chg : on ? PAL.dis : PAL.bat;
+      el.classList.toggle('on', on);
+      el.classList.toggle('charging', net && chg);
+      el.style.setProperty('--c', col);
+      this._anim(key, bp === null || x.lead ? null : Math.abs(bp), el);
+      this._set('.tag', bp === null ? T('tag.offline') : through ? T('tag.passthrough') : !net ? T('tag.standby') : chg ? T('tag.charging') : T('tag.discharging'), false, el);
+      const fill = el.querySelector('.soc-fill');
+      const lm = this._limits(x.b);
+      const usable = x.b.soc_display === 'nutzbar' && lm.maxSoc > lm.reserve;
+      // nutzbar: 0 % = Entladegrenze, 100 % = Maximalladung
+      const shown = bs === null ? null : usable ? Math.max(0, Math.min(100, (bs - lm.reserve) / (lm.maxSoc - lm.reserve) * 100)) : Math.max(0, Math.min(100, bs));
+      fill.style.width = (shown === null ? 0 : shown) + '%';
+      fill.style.setProperty('--sc', shown !== null && shown < 20 ? PAL.imp : shown !== null && shown < 40 ? PAL.pv : col);
+      this._set('.soc-txt', shown === null ? '—' : Math.round(shown) + ' %' + (usable ? ' ' + T('bat.usable_pct') : ''), false, el);
+      if (x.b.temp) this._set('.temp-txt', this._temp(x.b.temp), false, el);
+      const lo = el.querySelector('.soc-low'), hi = el.querySelector('.soc-high');
+      if (lo) { lo.style.width = (usable ? 0 : lm.reserve) + '%'; lo.style.display = !usable && lm.reserve > 0 ? '' : 'none'; }
+      if (hi) { hi.style.width = (usable ? 0 : 100 - lm.maxSoc) + '%'; hi.style.display = !usable && lm.maxSoc < 100 ? '' : 'none'; }
+      // Prognose bei gemeinsamem Sensor: Leistung nach Kapazität aufgeteilt
+      const capSum = grp.reduce((a, o) => a + o.cap, 0);
+      const share = grp.length < 2 ? 1 : capSum > 0 && x.cap > 0 ? x.cap / capSum : 1 / grp.length;
+      const tower = this._s3d && grp.length > 1;
+      const towerSoc = tower && grp.every((o) => o.soc !== null) ? grp.reduce((a, o) => a + o.soc * (o.cap || 1), 0) / grp.reduce((a, o) => a + (o.cap || 1), 0) : bs;
+      const fc = tower ? this._batForecast(bp, towerSoc, Object.assign({}, x.b, { capacity_kwh: capSum }), x.i) : this._batForecast(bp === null ? null : bp * share, bs, x.b, x.i);
+      // Ausgang = Haus + Einspeisung; ohne Einspeisung geht alles ins Haus, dann genügt der Ausgang allein
+      const outExp = via && !via2 ? Math.min(out, gExp) : 0;
+      const split = outExp > TH && out - outExp > TH ? T('bat.split', { home: this._fW(out - outExp), grid: this._fW(outExp) }) : '';
+      const subT = via ? T('bat.io', { in: this._fW(pin + inAc), out: this._fW(out) }) + (via2 && inAc > TH ? T('bat.in2', { pv: this._fW(pin), ac: this._fW(inAc) }) : '') + split + (fc ? '<br>' + fc : '') : fc;
+      const mates = tower ? '' : grp.filter((o) => o !== x).map((o) => esc(o.b.name || T('flow.battery') + ' ' + (o.i + 1))).join(', ');
+      this._set('.sub', mates ? T('bat.shared', { name: mates }) + (subT ? '<br>' + subT : '') : subT, true, el);
+      if (via2) {
+        // PV 2 -> Speicher (Eingang) und Speicher <-> Haus: netzseitig (AC) Abgabe minus Ladung aus dem Haus
+        const acNet = out - inAc;
+        this._link(`r:pv2:${key}`, pin > TH, true, PAL.pv, pin);
+        this._link(key, Math.abs(acNet) > TH, acNet >= 0, acNet >= 0 ? (bp !== null && bp < -TH ? PAL.dis : PAL.pv) : PAL.imp, Math.abs(acNet));
+      } else if (via) {
+        // Solar -> Speicher (Eingang) und Speicher -> Haus (Ausgang); Ausgang in Batteriefarbe, sobald der Speicher entlädt
+        this._link('pvbat', pin > TH, true, PAL.pv, pin);
+        this._link(key, out > TH, true, bp !== null && bp < -TH ? PAL.dis : PAL.pv, out);
+      } else this._link(key, on && !x.lead, !chg, col, bp);
+    });
+    if (this._s3d) {
+      this._routes3d({ bats, gImp: gImpM, gExp, p1Home: p1Home + p1Rest, p2Home: p2Home + p2Rest, p1Bat, p1Exp, p2Exp, pv2Bat: p2Bat });
+      this._draw3d({ pv1, pv2, grid, home, bats, src: { pv: pvHome, bat: bDis, imp: gImp } });
+    }
+    this._banner({ pv, grid, bat, soc, home, gImp: gImpM, gExp });
+    // Momentaufnahme fuer die "Warum?"-Erklaerung (why)
+    this._wy = { home, pv: pv || 0, pvHome, bDis, bmChg, gImp, gExp, bats: bats.filter((x) => !x.lead).map((x) => Object.assign({ n: x.b.name || T('flow.battery'), p: x.p, soc: x.soc }, this._limits(x.b))) };
+    this._anim('home', home, this._$('.core'));
+    const sh = { pv: tot ? pvHome / tot : 0, bat: tot ? bDis / tot : 0, grid: tot ? gImp / tot : 0 };
+    // home_color: source (optional): Die Zahl über dem Haus nimmt die Farbe der Quelle mit dem größten Anteil. Erst ab 5 Punkten Vorsprung wechselt die Farbe
+    const hn = this._$('.core .num');
+    if (hn) {
+      let col = '';
+      if (c.home_color === 'source' && tot > 0) {
+        const lead = ['pv', 'bat', 'grid'].reduce((a, k) => (sh[k] > sh[a] ? k : a), 'pv');
+        const keep = this._hc && sh[this._hc] >= sh[lead] - 0.05 ? this._hc : lead;
+        this._hc = keep;
+        col = `rgb(${keep === 'pv' ? PAL.pv : keep === 'bat' ? PAL.dis : PAL.imp})`;
+      } else this._hc = null;
+      if (hn.style.color !== col) hn.style.color = col;
+    }
+    let start = 0;
+    ['pv', 'bat', 'grid'].forEach((k) => {
+      const seg = this._$(`.seg[data-g="${k}"]`);
+      // Der Abstand zum Nachbarn darf einen kleinen Anteil nicht aufbrauchen: Was in der Legende mit mindestens 1 % steht, bleibt als Punkt sichtbar
+      const len = sh[k] * 100, full = len > 99.5, gap = full || len < 0.5 ? 0 : Math.min(3, len - 0.05);
+      const vis = Math.max(0, len - gap);
+      seg.style.strokeDasharray = `${vis.toFixed(2)} ${(100 - vis).toFixed(2)}`;
+      seg.style.strokeDashoffset = `${(-(start + gap / 2)).toFixed(2)}`;
+      seg.style.opacity = len < 0.5 ? '0' : '1';
+      start += len;
+      this._set(`[data-m="${k}"]`, tot ? Math.round(sh[k] * 100) + ' %' : '—');
+    });
+    let sumAll = 0;
+    this._wyItems = [];
+    c.consumers.forEach((x, i) => {
+      const el = this._$(`[data-k="c${i}"]`);
+      if (!el) return;
+      const secSt = x.secondary && h.states[x.secondary];
+      const dec = x.secondary_decimals === undefined ? 1 : x.secondary_decimals;
+      let secTxt = secSt && !['unavailable', 'unknown'].includes(secSt.state)
+        ? `${nf(parseFloat(secSt.state) || 0, dec)} ${secSt.attributes.unit_of_measurement || ''}`.trim() : '';
+      if (x.entity) {
+        const p = this._cw(x), on = (p || 0) > onW(x);
+        // grid2: Kosten pro Stunde mit dem eigenen Preis
+        if (x._g2 && on) { const pr = WD.price(h, c.grid2.price, c.grid2.price_ct, 0); if (pr > 0) secTxt = `${nf(p / 1000 * pr, 2)} ${cur()}/h`; }
+        sumAll += p || 0;
+        this._wyItems.push({ n: x.name || x.entity, w: p || 0, c: x.color });
+        el.classList.toggle('on', on);
+        this._anim('c' + i, p, el);
+        this._set(`[data-k="c${i}"] .c-sec`, p === null ? T('offline') : secTxt);
+        this._link('c' + i, on, false, rgb(x.color, '167,139,250'), p);
+      } else {
+        el.classList.add('on');
+        const parts = secTxt ? secTxt.split(' ') : ['—'];
+        this._set(`[data-k="c${i}"] .num`, parts[0]);
+        this._set(`[data-k="c${i}"] .unit`, parts.slice(1).join(' '));
+      }
+    });
+    // Kachel "Nicht erfasst" bei einzelnen Verbrauchern (hide_rest: false): Hausverbrauch minus Summe der Verbraucher
+    const crel = this._$('[data-k="crest"]');
+    if (crel) {
+      const restW = Math.max(0, home - sumAll - bmChg), restMin = parseFloat(c.rest_min) || 0;
+      const show = restMin <= 0 || (home > TH && restW / home * 100 >= restMin), on = show && restW > TH;
+      crel.style.display = show ? '' : 'none';
+      crel.classList.toggle('on', on);
+      this._anim('crest', restW, crel);
+      this._link('crest', on, false, PAL.mut, restW);
+    }
+    const G = c.consumer_groups || [];
+    if (G.length) {
+      // Einzelverbraucher neben den Gruppen zaehlen ebenfalls als erfasst (sumAll enthaelt hier erst die Einzelverbraucher)
+      let known = sumAll, vis = 0;
+      G.forEach((g, i) => {
+        const el = this._$(`[data-k="g${i}"]`);
+        if (!el) return;
+        let sum = 0, any = false;
+        (g.items || []).forEach((x, j) => {
+          const it = this._$(`[data-i="${i}-${j}"]`);
+          if (!it) return;
+          const st = x.entity ? h.states[x.entity] : null;
+          it.classList.toggle('off', !!x.entity && (!st || st.state === 'unavailable'));
+          const p = x.entity ? this._cw(x) : null;
+          let txt = '';
+          if (p !== null) { sum += p; any = true; const sp = this._sw(p); txt = sp[0] + ' ' + sp[1]; }
+          const sec = x.secondary && h.states[x.secondary];
+          if (!txt && sec && !['unavailable', 'unknown'].includes(sec.state)) {
+            const dec = x.secondary_decimals === undefined ? 1 : x.secondary_decimals;
+            txt = `${nf(parseFloat(sec.state) || 0, dec)} ${sec.attributes.unit_of_measurement || ''}`.trim();
+          }
+          it.classList.toggle('on', (p || 0) > onW(x));
+          const b = it.querySelector('b');
+          if (b.textContent !== txt) b.textContent = txt;
+        });
+        if (this._gSort) this._sortGroup(i, g);
+        known += sum;
+        sumAll += sum;
+        const wi = (g.items || []).map((x) => ({ n: x.name || x.entity, w: x.entity ? (this._cw(x) || 0) : 0 })).filter((x) => x.w > TH).sort((a, b) => b.w - a.w);
+        this._wyItems.push({ n: g.name, w: sum, c: g.color, top: wi.length > 1 && wi[0].w >= sum * 0.5 ? wi[0] : null });
+        const shown = (g.items || []).some((x) => !x.entity || (h.states[x.entity] && h.states[x.entity].state !== 'unavailable'));
+        el.style.display = shown ? '' : 'none';
+        if (shown) vis++;
+        const on = shown && sum > onW(g);
+        el.classList.toggle('on', on);
+        this._anim('g' + i, any ? sum : null, el);
+        this._link('g' + i, on, false, rgb(g.color, '167,139,250'), sum);
+      });
+      const rel = this._$('[data-k="grest"]');
+      const restW = Math.max(0, home - known - bmChg);
+      const restMin = parseFloat(c.rest_min) || 0;
+      const restShow = !!rel && (restMin <= 0 || (home > TH && restW / home * 100 >= restMin));
+      if (rel) { rel.style.display = restShow ? '' : 'none'; if (restShow) vis++; }
+      if (vis !== this._gVis) {
+        this._gVis = vis;
+        const gw = this._$('.groups');
+        if (gw) gw.style.gridTemplateColumns = `repeat(${Math.max(1, this._gc ? Math.min(this._gc, vis) : vis)},minmax(0,1fr))`;
+        this._schedLayout();
+      }
+      if (rel) {
+        const rest = Math.max(0, home - known - bmChg);
+        const on = rest > TH;
+        rel.classList.toggle('on', on);
+        this._anim('grest', rest, rel);
+        this._link('grest', on, false, PAL.mut, rest);
+        this._set('.rest-t', home > TH ? T('flow.restpct', { n: Math.round(Math.min(1, (known + bmChg) / home) * 100) }) : '');
+      }
+    }
+    if (this._sam) {
+      const bel = this._$('[data-k="bundle"]');
+      if (bel) {
+        const on = sumAll > TH;
+        bel.classList.toggle('on', on);
+        this._set('.sam-w', this._fW(sumAll), true);
+        this._link('bundle', on, false, PAL.home, sumAll);
+      }
+    }
+    // daily_from_total: Tageswert aus der Statistik des Gesamtzählers (this._dTot); fällt die Abfrage aus, gilt der Sensorwert wie bisher
+    const raw = rawUnits(c), en = (id) => (c.daily_from_total && !this._dErr && id ? (this._dTot && id in this._dTot ? this._dTot[id] : null) : kwh(h, id, raw));
+    let dPv = c.pv ? en(c.pv.daily) : null;
+    if (c.pv2 && c.pv2.daily) { const d2 = en(c.pv2.daily); if (d2 !== null) dPv = (dPv || 0) + d2; }
+    const dImp = c.grid ? en(c.grid.daily_import) : null;
+    const dExp = c.grid ? en(c.grid.daily_export) : null;
+    // Derselbe Sensor bei mehreren Speichern zählt nur einmal
+    const sumBat = (f, list) => [...new Set((list || c.batteries).map((b) => b[f]))].reduce((a, id) => { const v = en(id); return v === null ? a : (a || 0) + v; }, null);
+    const dChg = sumBat('daily_charge');
+    const dDis = sumBat('daily_discharge');
+    const balB = c.batteries.filter((b) => b.behind_meter !== true);
+    // pv.daily_ac: Der Tagesertrag zählt nur die Abgabe des Wechselrichters. Die Batterie-Ladung fehlt darin, die Entladung steckt darin
+    if (c.pv && c.pv.daily_ac === true && dPv !== null) dPv = Math.max(0, dPv + (sumBat('daily_charge', balB) || 0) - (sumBat('daily_discharge', balB) || 0));
+    this._set('[data-s="pv"] b', `${this._fk(dPv)}<small>kWh</small>`, true);
+    if (c.pv && c.pv.forecast_tomorrow) this._set('[data-s="fc1"] b', `${this._fk(kwh(h, c.pv.forecast_tomorrow, raw))}<small>kWh</small>`, true);
+    if (c.pv && c.pv.forecast_day_after) this._set('[data-s="fc2"] b', `${this._fk(kwh(h, c.pv.forecast_day_after, raw))}<small>kWh</small>`, true);
+    this._set('[data-s="imp"] b', `${this._fk(dImp)}<small>kWh</small>`, true);
+    this._set('[data-s="exp"] b', `${this._fk(dExp)}<small>kWh</small>`, true);
+    this._set('[data-s="bat"] b', `+${this._fk(dChg)}<small>/</small> −${this._fk(dDis)}<small>kWh</small>`, true);
+    let aut = null, dHome = c.home && c.home.daily ? en(c.home.daily) : null;
+    if (dPv !== null && dImp !== null) {
+      const cons = dPv + dImp - (dExp || 0) - (sumBat('daily_charge', balB) || 0) + (sumBat('daily_discharge', balB) || 0);
+      if (cons > 0) aut = 1 - dImp / cons;
+      if (dHome === null && !(c.home && c.home.daily)) dHome = Math.max(0, cons);
+    }
+    this._set('[data-s="home"] b', `${this._fk(dHome)}<small>kWh</small>`, true);
+    this._set('[data-s="aut"] b', this._fp(aut));
+    if (this._dlg !== null && this._dlg !== undefined) this._dlgUpd();
+  }
+}
+
+if (!customElements.get('energy-cockpit-flow-card')) {
+  customElements.define('energy-cockpit-flow-card', EnergyCockpitFlowCard);
+  window.customCards = window.customCards || [];
+  window.customCards.push({ type: 'energy-cockpit-flow-card', name: 'energy-cockpit Energiefluss', description: 'Animierter Energiefluss (PV, Netz, Batterie, Verbraucher)', preview: true });
+}
+})();

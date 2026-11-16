@@ -1,0 +1,11 @@
+{
+  "mappings": [
+    {"key":"solar","id":"example.0.solar.power","name":"Solaranlage","dimension":"power","unit":"W","staleSeconds":180,"role":"pv"},
+    {"key":"grid","id":"example.0.grid.power","name":"Netzzähler","dimension":"power","unit":"W","staleSeconds":180,"role":"grid"},
+    {"key":"storage_soc","id":"example.0.battery.soc","name":"Speicher Ladestand","dimension":"soc","unit":"%","staleSeconds":180,"role":"battery_soc","group":"Speicher A"}
+  ],
+  "cards":{"flow":{"style":"3d","why":true},"devices":{},"stats":{},"room":{}},
+  "historyInstance":"influxdb.0",
+  "importPrice":null,
+  "exportPrice":null
+}

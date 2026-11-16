@@ -1,0 +1,127 @@
+{
+  "common": {
+    "name": "energy-cockpit",
+    "version": "0.1.0-alpha.1",
+    "news": {
+      "0.1.0-alpha.1": {
+        "en": "Initial ioBroker port; see TEST_REPORT.md for verified scope",
+        "de": "Erste ioBroker-Portierung; gepr?fter Umfang in TEST_REPORT.md"
+      }
+    },
+    "titleLang": {
+      "en": "Energy Cockpit",
+      "de": "Energiecockpit",
+      "ru": "Энергетическая кабина",
+      "pt": "Cockpit de Energia",
+      "nl": "Energiecockpit",
+      "fr": "Cockpit énergétique",
+      "it": "Cabina di pilotaggio energetica",
+      "es": "Cabina de energía",
+      "pl": "Kokpit energetyczny",
+      "uk": "Енергетична кабіна",
+      "zh-cn": "能量驾驶舱"
+    },
+    "desc": {
+      "en": "Local energy dashboard ported from Energy-Cockpit",
+      "de": "Lokales Energie-Dashboard, portiert von Energy-Cockpit",
+      "ru": "Панель мониторинга локальной энергетики перенесена из Energy-Cockpit.",
+      "pt": "Painel de energia local transferido do Energy-Cockpit",
+      "nl": "Lokaal energiedashboard geporteerd vanuit Energy-Cockpit",
+      "fr": "Tableau de bord de l'énergie locale porté depuis Energy-Cockpit",
+      "it": "Dashboard energetico locale trasferito da Energy-Cockpit",
+      "es": "Panel de energía local transferido desde Energy-Cockpit",
+      "pl": "Lokalny pulpit nawigacyjny dotyczący energii przeniesiony z Energy-Cockpit",
+      "uk": "Локальна енергетична панель, перенесена з Energy-Cockpit",
+      "zh-cn": "从 Energy-Cockpit 移植的本地能源仪表板"
+    },
+    "authors": [
+      "Landixus"
+    ],
+    "keywords": [
+      "energy",
+      "solar",
+      "battery"
+    ],
+    "licenseInformation": {
+      "type": "free",
+      "license": "MIT"
+    },
+    "platform": "Javascript/Node.js",
+    "icon": "energy-cockpit.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/Landixus/ioBroker.energy-cockpit/main/admin/energy-cockpit.png",
+    "readme": "https://github.com/Landixus/ioBroker.energy-cockpit/blob/main/README.md",
+    "loglevel": "info",
+    "tier": 3,
+    "mode": "daemon",
+    "messagebox": true,
+    "type": "visualization",
+    "compact": false,
+    "connectionType": "local",
+    "dataSource": "push",
+    "adminUI": {
+      "config": "materialize"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=6.0.11"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=7.0.23"
+      }
+    ],
+    "localLink": "%protocol%://%ip%:%port%",
+    "webByVersion": true
+  },
+  "native": {
+    "port": 8082,
+    "bind": "127.0.0.1",
+    "secure": true,
+    "dashboardPasswordHash": "",
+    "settings": {
+      "mappings": [],
+      "cards": {
+        "flow": {
+          "style": "3d",
+          "why": true
+        },
+        "devices": {},
+        "stats": {},
+        "room": {}
+      },
+      "historyInstance": "influxdb.0",
+      "importPrice": null,
+      "exportPrice": null
+    }
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": "Device or service connected",
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ],
+  "protectedNative": [
+    "dashboardPasswordHash"
+  ],
+  "encryptedNative": []
+}

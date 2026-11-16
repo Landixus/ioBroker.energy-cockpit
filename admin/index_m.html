@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../css/adapter.css" />
+    <link rel="stylesheet" href="../../lib/css/materialize.css" />
+    <script src="../../lib/js/jquery-3.2.1.min.js"></script>
+    <script src="../../lib/js/materialize.js"></script>
+    <script>
+      var systemDictionary = {};
+    </script>
+    <script src="../../socket.io/socket.io.js"></script>
+    <script src="../../js/translate.js"></script>
+    <script src="../../js/adapter-settings.js"></script>
+    <style>
+      body {
+        font: 15px system-ui;
+        padding: 24px;
+      }
+      label {
+        display: block;
+        margin: 16px 0;
+      }
+      input,
+      textarea {
+        display: block;
+        width: 95%;
+        padding: 8px;
+      }
+      textarea {
+        height: 320px;
+        font: 13px monospace;
+      }
+      button {
+        padding: 10px;
+        margin: 8px;
+      }
+      #results {
+        max-height: 220px;
+        overflow: auto;
+      }
+      pre {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ioBroker Energy-Cockpit</h1>
+    <p>
+      Der grafische Einrichtungsassistent mit Live-Vorschau ist im Dashboard
+      verfügbar. Anmeldung mit ioBroker-Benutzer „admin“.
+    </p>
+    <a id="dashboard" target="_blank" rel="noopener"
+      >Dashboard & Assistent öffnen</a
+    ><label>Port<input id="port" type="number" min="1024" max="65535" /></label
+    ><label>Bind-Adresse<input id="bind" /></label
+    ><label
+      ><input
+        id="secure"
+        type="checkbox"
+        style="width: auto; display: inline"
+      />
+      HTTPS mit ioBroker-Zertifikat</label
+    >
+    <h2>Datenpunktsuche</h2>
+    <input id="query" placeholder="ID oder Name" /><button
+      id="search"
+      type="button"
+    >
+      Suchen
+    </button>
+    <pre id="results"></pre>
+    <h2>Zuordnungen und Original-Kartenoptionen</h2>
+    <p>
+      Die grafische Bearbeitung erfolgt im Dashboard. Hier kann dieselbe
+      Konfiguration als JSON bearbeitet werden.
+    </p>
+    <textarea id="settings"></textarea>
+    <p id="error" role="alert"></p>
+    <script>
+      let current = {};
+      function link() {
+        document.getElementById("dashboard").href =
+          (document.getElementById("secure").checked ? "https" : "http") +
+          "://" +
+          location.hostname +
+          ":" +
+          document.getElementById("port").value +
+          "/";
+      }
+      function load(settings, onChange) {
+        current = settings;
+        ["port", "bind"].forEach(
+          (k) => (document.getElementById(k).value = settings[k]),
+        );
+        document.getElementById("secure").checked = settings.secure !== false;
+        document.getElementById("settings").value = JSON.stringify(
+          settings.settings,
+          null,
+          2,
+        );
+        document.querySelectorAll("input,textarea").forEach(
+          (e) =>
+            (e.onchange = () => {
+              onChange();
+              link();
+            }),
+        );
+        document.getElementById("search").onclick = () =>
+          sendTo(
+            null,
+            "browse",
+            { query: document.getElementById("query").value },
+            (r) => {
+              document.getElementById("results").textContent = JSON.stringify(
+                r,
+                null,
+                2,
+              );
+            },
+          );
+        link();
+        onChange(false);
+      }
+      function save(callback) {
+        try {
+          const settings = JSON.parse(
+            document.getElementById("settings").value,
+          );
+          const port = Number(document.getElementById("port").value);
+          if (!Number.isInteger(port) || port < 1024 || port > 65535)
+            throw Error("Ungültiger Port");
+          callback({
+            ...current,
+            port,
+            bind: document.getElementById("bind").value,
+            secure: document.getElementById("secure").checked,
+            settings,
+          });
+        } catch (e) {
+          document.getElementById("error").textContent = e.message;
+        }
+      }
+    </script>
+  </body>
+</html>

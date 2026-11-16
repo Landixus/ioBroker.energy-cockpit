@@ -1,0 +1,38 @@
+name: Isolated ioBroker integration
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm pack
+      - name: Start dedicated empty ioBroker container
+        run: |
+          docker run -d --name ec-ci --label energy-cockpit.test=true --memory=1g iobroker/iobroker:latest-v11
+          for i in $(seq 1 90); do
+            if docker exec ec-ci iobroker object get system.adapter.admin.0 >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          docker cp iobroker.energy-cockpit-0.1.0-alpha.1.tgz ec-ci:/tmp/cockpit.tgz
+          docker cp test/integration/lifecycle.cjs ec-ci:/tmp/lifecycle.cjs
+          docker exec ec-ci iobroker url /tmp/cockpit.tgz energy-cockpit
+          docker exec ec-ci iobroker add energy-cockpit
+          docker exec ec-ci node /tmp/lifecycle.cjs provision
+      - name: Exercise lifecycle and persisted restart
+        run: |
+          docker exec ec-ci node /tmp/lifecycle.cjs exercise
+          docker restart ec-ci
+          docker exec ec-ci node /tmp/lifecycle.cjs verify
+      - name: Collect logs
+        if: always()
+        run: docker logs ec-ci
+      - name: Remove only the dedicated CI container and its anonymous volume
+        if: always()
+        run: docker rm -fv ec-ci

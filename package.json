@@ -1,0 +1,54 @@
+{
+  "name": "iobroker.energy-cockpit",
+  "version": "0.1.0-alpha.1",
+  "description": "ioBroker port of the original Energy-Cockpit dashboard",
+  "author": "Landixus",
+  "license": "MIT",
+  "main": "build/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Landixus/ioBroker.energy-cockpit.git"
+  },
+  "files": [
+    "build/",
+    "www/",
+    "admin/",
+    "io-package.json",
+    "LICENSE",
+    "README.md",
+    "docs/UPSTREAM.md"
+  ],
+  "scripts": {
+    "build": "tsc && node tools/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint lib main.ts frontend/*.js frontend/*.mjs tools/*.mjs test/*.cjs",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "test:browser": "node tools/browser-tests.mjs",
+    "test:upstream": "node tools/upstream-tests.mjs",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "@iobroker/adapter-core": "^3.4.3",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@mdi/svg": "7.4.47",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.1",
+    "playwright": "^1.56.1",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    }
+  }
+}
