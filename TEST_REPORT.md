@@ -3,7 +3,11 @@
 ## Alpha.8 charger layout
 
 - 70 UI regression scenarios passed, including eight new classic/3D charger-only layouts at 1440, 768, 390 and 320 px. They verify separate input/output ports, non-overlapping labels and the consumer remainder.
-- Production layout verification is pending at this commit.
+- 18 unit/API tests, six standalone browser groups, ESLint, TypeScript and the upstream 3D/behind-meter assertion pages passed on the final local build.
+- Alpha.8 is installed after a fresh validated backup. Authenticated production browser checks passed for the single BMS-equipped battery, measured zero inverter contribution, complete source shares, household/remainder calculations, grid import/export sign handling and charger/inverter routes. Tablet/mobile checks also verified charger path endpoints and non-overlapping text; no page errors occurred.
+- Installed and uploaded assets match the build; native settings are unchanged from the confirmed alpha.7 merge. Existing container IDs/start times are unchanged. MQTT, JavaScript and InfluxDB status checks passed; Grafana and InfluxDB HTTP health endpoints returned 200. Current adapter startup contains no subsequent warning/error entries.
+- [Release packaging](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848296395) passed, including Linux browser tests. The published checksum was verified and all 77 package files match the tested build after line-ending normalization. The first release attempt had an npm download connection reset before build/test execution; the retry passed.
+- [Full CI](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291157) and [isolated installation](https://github.com/Landixus/ioBroker.energy-cockpit/actions/runs/43848291180) are still running at this documentation checkpoint; they are not counted as passed for alpha.8.
 
 ## Alpha.7 external battery channels and grid cable
 
