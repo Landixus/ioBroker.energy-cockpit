@@ -38,7 +38,7 @@
   "devDependencies": {
     "@mdi/svg": "7.4.47",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.1",
     "playwright": "^1.56.1",
