@@ -23,7 +23,7 @@ const settings = {
   exportPrice: null,
 };
 async function login() {
-  for (let n = 0; n < 40; n++) {
+  for (let n = 0; n < 120; n++) {
     try {
       const r = await fetch("http://127.0.0.1:8082/api/login", {
         method: "POST",
